@@ -493,6 +493,9 @@
             <activation>
                 <jdk>[25,)</jdk>
             </activation>
+            <properties>
+                <argLine></argLine>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
