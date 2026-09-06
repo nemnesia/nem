@@ -17,9 +17,12 @@ Baseline date: 2026-09-06 (Asia/Tokyo)
 
 | Item | Baseline |
 | --- | --- |
-| Branch | `dev` |
-| Starting HEAD | `3620879f2bf8a81091e2d5a75a576b301d78d3fa` |
-| Final HEAD | `3620879f2bf8a81091e2d5a75a576b301d78d3fa` (no commit; Phase 0 artifacts are uncommitted) |
+| Original baseline branch | `dev` |
+| Phase 0 artifact branch | `agent/nis-phase0-baseline` |
+| Original baseline HEAD | `3620879f2bf8a81091e2d5a75a576b301d78d3fa` |
+| Phase 0 artifact commit | `8cb326951595afa84913e5b68f18d2c0b87fae87` |
+| Phase 0 artifact status | Committed; production source changes: none |
+| Phase 0 closure / Phase 1 starting point | The HEAD of the separate `[nis] docs: close Phase 0 baseline metadata` commit |
 | Version | `0.6.102` |
 | Supported build JDK in repository | Java 11+; CI and the NIS Docker image explicitly use Java 11 |
 | JDK used for this survey | OpenJDK 17.0.20, Ubuntu, `/usr/lib/jvm/java-17-openjdk-amd64` |
