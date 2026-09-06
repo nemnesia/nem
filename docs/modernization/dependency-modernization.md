@@ -337,7 +337,8 @@ line, cache/persistent state, and memory optimization remain later decisions.
 
 **PHASE 2A READY WITH CONDITIONS**
 
-The first low-coupling build/test wave can be planned from repository evidence.
-Runtime framework and database implementation waves remain conditional on the
-Java 11/web target decision, representative database copies, and full
-consensus/state regression verification. Phase 2B has not been implemented.
+The first low-coupling build/test wave was implemented separately and is
+documented in `build-test-modernization.md`. Runtime framework and database
+implementation waves remain conditional on the Java 11/web target decision,
+representative database copies, and full consensus/state regression
+verification. Phase 2C has not been implemented.
