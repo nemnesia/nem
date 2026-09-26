@@ -4,7 +4,9 @@
 
 **PARTIAL — production Jetty migration は開始しない。**
 
-本番 `NisWebAppWebsocketInitializer` から Jetty 12 EE8 provider を実行時選択できる narrow SPI を追加し、Jetty 9/Jetty 12 の標準 `sockjs-client` による WebSocket/XHR polling、STOMP、Origin、異常終了の比較を行った。Java 25 の root test/package は成功した。一方で、Java 17 hosted run は既知の外部 public peer timeout で失敗し、SockJS polling session cleanup が10秒後も残る観測、raw WebSocket handshake header 未取得などが残る。
+本番 `NisWebAppWebsocketInitializer` から Jetty 12 EE8 provider を実行時選択できる narrow SPI を追加し、Jetty 9/Jetty 12 の標準 `sockjs-client` による WebSocket/XHR polling、STOMP、Origin、異常終了の比較を行った。ローカル Java 25 の root test/package は成功した。開始時点の Java 17 hosted run は既知の外部 public peer timeout で失敗していたが、変更後 commit では Java 17 / 25 hosted workflow が成功した。SockJS polling session cleanup が10秒後も残る観測、raw WebSocket handshake header 未取得などは残る。
+
+変更後の current implementation commit `3c526126ea136ab86048bc142158b9a5a0fb613b` では GitHub-hosted Java 17 と Java 25 の両 workflow が成功した。従って Java 17 CI は現在の gate blocker ではない。最終判定は session cleanup と一部の externally observable edge contract が未確定のため `PARTIAL` とする。
 
 Repository: `nemnesia/nem`
 Branch: `agent/nis-phase0-baseline`
@@ -75,9 +77,10 @@ Production config は `.setAllowedOriginPatterns("*")` で、拒否対象 Origin
 - ローカル `java -version`: OpenJDK `25.0.4.1`; `javac`: `25.0.4.1`; Maven `3.8.7`。Java 17 runtimeはローカルになく、system/global JDK設定は変更していない。
 - Java 25 `mvn -B clean test`: 成功。Surefire report集計 `625 classes / 6,220 tests; failures=0, errors=0, skipped=0`。従来 baselineの `624 / 6,218` より1 class / 2 tests多い。test source自体は変更していない。増加理由は test discovery / report差分として記録し、減少はない。
 - Java 25 `mvn -B -DskipTests package`: 成功。
-- Starting HEADでの hosted Java 17 Baseline `36274704082` はfailure。認証済み `gh run view --log-failed` で失敗を取得した。`NisPeerNetworkHostTest.getNetworkBroadcastBufferDoesNotThrowIfNetworkIsBooted` 1 error、`network boot failed`。ログでは `hachi.nem.ninja/62.146.225.82:7890` 接続timeoutが原因として表示される。外部public peer依存の既知カテゴリと一致するが、runは成功ではない。
+- Starting HEADでの hosted Java 17 Baseline `36274704082` はfailure。認証済み `gh run view --log-failed` で失敗を取得した。`NisPeerNetworkHostTest.getNetworkBroadcastBufferDoesNotThrowIfNetworkIsBooted` 1 error、`network boot failed`。ログでは `hachi.nem.ninja/62.146.225.82:7890` 接続timeoutが原因として表示される。これは starting HEAD の記録として保持する。
 - Starting HEAD hosted Java 25 Compatibility `36274704103`: success。これはJava 17 hosted gateの代替ではない。
-- 変更後commitに対するhosted Java17/25結果をpush後に追記する。
+- 変更後 commit `3c526126ea136ab86048bc142158b9a5a0fb613b` の [Java 17 Baseline run 36277541009](https://github.com/nemnesia/nem/actions/runs/36277541009): Temurin `17.0.20.1`, Maven `3.9.16`; `mvn -B clean test` 成功（合計 6,220 tests、failures/errors/skipped すべて0）、`mvn -B -DskipTests package` 成功。
+- 同 commit の [Java 25 Compatibility run 36277540985](https://github.com/nemnesia/nem/actions/runs/36277540985): Temurin `25.0.4.1`, Maven `3.9.16`; clean test 成功（同じ6,220 tests、failure/error/skip 0）、package 成功。Java 25結果は補助情報であり、Java 17 gateの代替ではない。
 - Jenkins Java 17 build pathは過去Phaseのexternal image/shared-library blockerのまま。今回調査・変更・検証していない。
 
 ## 維持する未解決条件
