@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.lang.management.ManagementFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -38,6 +39,7 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 import org.springframework.web.servlet.DispatcherServlet;
+import org.springframework.web.socket.config.WebSocketMessageBrokerStats;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.sockjs.frame.AbstractSockJsMessageCodec;
@@ -48,6 +50,7 @@ import net.minidev.json.JSONValue;
 public final class Jetty9SockJsControl {
     public static void main(String[] args) throws Exception {
         boolean fixedCodec = args.length > 0 && "fixed-codec".equals(args[0]);
+        int iterations = args.length > 0 && args[0].matches("[0-9]+") ? Integer.parseInt(args[0]) : 1;
         ServletContextHandler servlet = new ServletContextHandler(ServletContextHandler.SESSIONS);
         servlet.setContextPath("/");
         WebSocketServerContainerInitializer.configureContext(servlet);
@@ -73,8 +76,21 @@ public final class Jetty9SockJsControl {
                 }
             });
             if (info.statusCode() != 200) throw new AssertionError("SockJS /info status=" + info.statusCode());
-            runSockJsClient(port, "websocket", connects, "Jetty 9 websocket");
-            runSockJsClient(port, "xhr-polling", connects, "Jetty 9 xhr-polling");
+            checkOriginMatrix(client, port);
+            runSockJsClient(port, "websocket", connects, "Jetty 9 websocket", iterations);
+            runSockJsClient(port, "xhr-polling", connects, "Jetty 9 xhr-polling", iterations);
+            dumpStats(app, "Jetty 9 after normal cycles");
+            runSockJsClient(port, "websocket", connects, "Jetty 9 websocket abrupt close", 1, "abrupt");
+            dumpStats(app, "Jetty 9 after WebSocket abrupt close");
+            runSockJsClient(port, "websocket", connects, "Jetty 9 reconnect after WebSocket close", 1);
+            runSockJsClient(port, "xhr-polling", connects, "Jetty 9 xhr-polling abandonment", 1, "abrupt");
+            dumpStats(app, "Jetty 9 after XHR abandonment");
+            runSockJsClient(port, "xhr-polling", connects, "Jetty 9 reconnect after XHR abandonment", 1);
+            runErrorProbe(port, "websocket");
+            dumpStats(app, "Jetty 9 after malformed WebSocket STOMP");
+            runErrorProbe(port, "xhr-polling");
+            Thread.sleep(10000);
+            System.out.println("Jetty 9 Spring session stats=" + app.getBean(WebSocketMessageBrokerStats.class).getWebSocketSessionStatsInfo());
             System.out.println("JETTY9_STANDARD_SOCKJS info=" + info.statusCode() + "; SpringInboundConnectTotal=" + connects.get()
                     + "; codec=" + (fixedCodec ? "test-only decodeInputStream" : "production"));
         } finally {
@@ -84,16 +100,64 @@ public final class Jetty9SockJsControl {
         }
     }
 
-    private static void runSockJsClient(int port, String transport, AtomicInteger connects, String label) throws Exception {
+    private static void runSockJsClient(int port, String transport, AtomicInteger connects, String label, int iterations) throws Exception {
+        runSockJsClient(port, transport, connects, label, iterations, "normal");
+    }
+
+    private static void runSockJsClient(int port, String transport, AtomicInteger connects, String label, int iterations, String mode) throws Exception {
         int before = connects.get();
-        Process process = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-client-probe.js",
-                "http://localhost:" + port + "/messages", transport, "12000", "expect-nis-message").inheritIO().start();
-        if (!process.waitFor(Duration.ofSeconds(20).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
-            process.destroyForcibly();
-            throw new AssertionError("sockjs-client timed out for " + transport);
+        int threadsBefore = ManagementFactory.getThreadMXBean().getThreadCount();
+        int threadsPeak = threadsBefore;
+        for (int i = 0; i < iterations; i++) {
+            ProcessBuilder builder = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-client-probe.js",
+                    "http://localhost:" + port + "/messages", transport, "12000", "normal".equals(mode) ? "expect-nis-message" : "", mode);
+            if (iterations > 1) builder.redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD);
+            else builder.inheritIO();
+            Process process = builder.start();
+            if (!process.waitFor(Duration.ofSeconds(20).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                process.destroyForcibly();
+                throw new AssertionError("sockjs-client timed out for " + transport + " iteration " + i);
+            }
+            if (process.exitValue() != 0) throw new AssertionError("sockjs-client failed for " + transport + " iteration " + i);
+            if ("abrupt".equals(mode)) Thread.sleep(1500);
+            threadsPeak = Math.max(threadsPeak, ManagementFactory.getThreadMXBean().getThreadCount());
         }
-        if (process.exitValue() != 0) throw new AssertionError("sockjs-client failed for " + transport);
-        System.out.println(label + " inboundConnectDelta=" + (connects.get() - before));
+        Thread.sleep(500);
+        int threadsAfter = ManagementFactory.getThreadMXBean().getThreadCount();
+        int connectDelta = connects.get() - before;
+        if (connectDelta != iterations) throw new AssertionError(label + " inbound CONNECT count=" + connectDelta + " expected=" + iterations);
+        System.out.println(label + " sessions=" + iterations + " inboundConnectDelta=" + connectDelta
+                + " jvmThreads(before/peak/after)=" + threadsBefore + "/" + threadsPeak + "/" + threadsAfter);
+    }
+
+    private static void checkOriginMatrix(HttpClient client, int port) throws Exception {
+        for (String origin : new String[] { null, "https://allowed.example", "https://otherwise-unmatched.invalid" }) {
+            HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/messages/info"));
+            if (null != origin) request.header("Origin", origin);
+            HttpResponse<String> response = client.send(request.GET().build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) throw new AssertionError("Origin policy response=" + response.statusCode() + " origin=" + origin);
+            System.out.println("Jetty 9 SockJS Origin=" + origin + " status=" + response.statusCode()
+                    + " allowOrigin=" + response.headers().firstValue("Access-Control-Allow-Origin").orElse("<absent>"));
+        }
+        HttpResponse<String> invalid = client.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/messages/not-sockjs"))
+                .GET().build(), HttpResponse.BodyHandlers.ofString());
+        System.out.println("Jetty 9 invalid SockJS path status=" + invalid.statusCode());
+    }
+
+    private static void runErrorProbe(int port, String transport) throws Exception {
+        Process process = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-client-probe.js",
+                "http://localhost:" + port + "/messages", transport, "5000", "", "invalid-stomp").inheritIO().start();
+        if (!process.waitFor(Duration.ofSeconds(8).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
+            process.destroyForcibly();
+            throw new AssertionError("Malformed STOMP probe timed out for " + transport);
+        }
+        if (process.exitValue() != 0) throw new AssertionError("Malformed STOMP probe did not terminate for " + transport);
+    }
+
+    private static void dumpStats(AnnotationConfigWebApplicationContext app, String label) {
+        WebSocketMessageBrokerStats stats = app.getBean(WebSocketMessageBrokerStats.class);
+        System.out.println(label + " sessions=" + stats.getWebSocketSessionStatsInfo()
+                + "; stomp=" + stats.getStompSubProtocolStatsInfo());
     }
 
     @Configuration

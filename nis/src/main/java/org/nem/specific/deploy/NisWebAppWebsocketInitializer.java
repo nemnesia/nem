@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.ServiceLoader;
+import javax.servlet.ServletContext;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import net.minidev.json.JSONValue;
@@ -20,13 +22,23 @@ import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.web.socket.config.annotation.*;
+import org.springframework.web.socket.server.HandshakeHandler;
+import org.springframework.web.socket.server.RequestUpgradeStrategy;
+import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
+import org.springframework.web.context.ServletContextAware;
 import org.springframework.web.socket.sockjs.frame.AbstractSockJsMessageCodec;
 
 @Configuration
 @ComponentScan("org.nem.nis.websocket")
 @EnableWebSocketMessageBroker
 @SuppressWarnings("deprecation")
-public class NisWebAppWebsocketInitializer extends AbstractWebSocketMessageBrokerConfigurer {
+public class NisWebAppWebsocketInitializer extends AbstractWebSocketMessageBrokerConfigurer implements ServletContextAware {
+	private ServletContext servletContext;
+
+	@Override
+	public void setServletContext(final ServletContext servletContext) {
+		this.servletContext = servletContext;
+	}
 
 	@Override
 	public void configureMessageBroker(final MessageBrokerRegistry registry) {
@@ -83,7 +95,37 @@ public class NisWebAppWebsocketInitializer extends AbstractWebSocketMessageBroke
 
 	@Override
 	public void registerStompEndpoints(final StompEndpointRegistry registry) {
-		registry.addEndpoint("/messages").setAllowedOriginPatterns("*").withSockJS().setMessageCodec(createSockJsMessageCodec());
+		final var endpoint = registry.addEndpoint("/messages").setAllowedOriginPatterns("*");
+		final RequestUpgradeStrategy strategy = this.findContainerSpecificUpgradeStrategy();
+		if (null != strategy) {
+			final HandshakeHandler handler = new DefaultHandshakeHandler(strategy);
+			endpoint.setHandshakeHandler(handler);
+		}
+		endpoint.withSockJS().setMessageCodec(createSockJsMessageCodec());
+	}
+
+	private RequestUpgradeStrategy findContainerSpecificUpgradeStrategy() {
+		if (null == this.servletContext) {
+			return null;
+		}
+
+		final Object container = this.servletContext.getAttribute("javax.websocket.server.ServerContainer");
+		if (null == container) {
+			return null;
+		}
+
+		RequestUpgradeStrategy strategy = null;
+		for (final NisWebSocketUpgradeStrategyProvider provider : ServiceLoader.load(NisWebSocketUpgradeStrategyProvider.class,
+				Thread.currentThread().getContextClassLoader())) {
+			final RequestUpgradeStrategy candidate = provider.createIfSupported(container);
+			if (null != candidate) {
+				if (null != strategy) {
+					throw new IllegalStateException("Multiple WebSocket upgrade strategy providers matched the servlet container");
+				}
+				strategy = candidate;
+			}
+		}
+		return strategy;
 	}
 
 	static AbstractSockJsMessageCodec createSockJsMessageCodec() {
