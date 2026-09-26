@@ -1,6 +1,6 @@
 # NIS build and test infrastructure modernization
 
-Status: Phase 2B and Phase 2C complete<br>
+Status: Phase 2B and Phase 2C complete; Phase 2D blocked by Hibernate 4 coupling<br>
 Audit date: 2026-09-07<br>
 Repository: `nemnesia/nem`<br>
 Branch: `agent/nis-phase0-baseline`<br>
@@ -361,5 +361,121 @@ zero failures, errors, or skips. Production sources and dependencies were
 unchanged, and the artifact comparison showed no unintended module, filename,
 packaging, or runtime-library changes. Phase 2C is **COMPLETE**.
 
-Phase 2D web/runtime framework alignment was not started. Spring, Jetty,
-Hibernate, H2, and Flyway remain deferred.
+No Phase 2D dependency implementation or Phase 2E ORM/database work was
+started. The Phase 2D audit and blocker are recorded below.
+
+## Phase 2D — Spring dependency modernization audit
+
+Status: **PHASE 2D BLOCKED**<br>
+Audit date: 2026-09-26<br>
+Starting HEAD: `6193eac3dcc70a11c10be49f139e35ed3a93dffb`<br>
+Implementation changes: none; no POM, production source, or test source was changed.
+
+### Current Spring inventory
+
+The direct POM declarations are split across two framework generations:
+
+| Module | Production Spring declarations | Test-only Spring declarations |
+| --- | --- | --- |
+| Core | None; an unused `spring.version` property remains | None |
+| Deploy | `spring-context`, `spring-jdbc`, `spring-orm`, `spring-tx`, `spring-webmvc` at `5.3.39` | None |
+| Peer | None | None |
+| NIS | The same five plus `spring-websocket` and `spring-messaging` at `4.3.30.RELEASE` | `spring-test:4.3.30.RELEASE` |
+
+There is no Spring Security dependency. Maven's verbose dependency tree
+confirms the NIS direct declarations win version mediation: the Deploy
+`5.3.39` paths are omitted in favor of NIS `4.3.30.RELEASE`. Thus the NIS
+runtime graph contains `spring-aop`, `spring-beans`, `spring-context`,
+`spring-core`, `spring-expression`, `spring-jcl`, `spring-jdbc`, `spring-orm`,
+`spring-tx`, `spring-web`, `spring-webmvc`, `spring-websocket`, and
+`spring-messaging`, all at `4.3.30.RELEASE`. `spring-test` is test scope and
+pulls only `spring-core`; Mockito remains test scope. No Spring dependency is
+declared in Core or Peer.
+
+Production API references occur in 12 Deploy Java files and 51 NIS Java files.
+The NIS test and integration source sets have 18 and 4 Java files with Spring
+references; Deploy has 7 test files. The application uses Java configuration
+(`@Configuration`, component scans, transaction annotations), programmatic
+`AnnotationConfigApplicationContext` and
+`AnnotationConfigWebApplicationContext` bootstrapping, `DispatcherServlet`,
+annotated MVC controllers, and WebSocket/STOMP configuration. There are no
+Spring bean XML configuration files. NIS Spring tests use JUnit 4's
+`SpringJUnit4ClassRunner` and `@ContextConfiguration`.
+
+### Candidate and compatibility boundary
+
+Spring Framework `5.3.39` is the investigated public Maven Central candidate:
+it preserves the Java EE `javax` APIs, has a Java 8+ baseline, and is already
+the version used to compile Deploy. The official support matrix lists Spring
+5.3 as compatible with JDK 8–21, so Java 25 is outside its stated range even
+though Deploy is already compiled against it. Spring 6.2 and 7.x require JDK
+17 and Jakarta EE, so they do not satisfy the Java 11 and namespace
+constraints. Spring 5.3 open-source support ended in August 2024; later 5.3
+security releases are enterprise-only rather than public Central releases.
+Accordingly, `5.3.39` is a candidate to investigate, not a supported long-term
+destination. See the upstream [version/JDK matrix](https://github.com/spring-projects/spring-framework/wiki/Spring-Framework-Versions),
+[Spring 5.0 upgrade notes](https://github.com/spring-projects/spring-framework/wiki/Spring-Framework-5.0-Release-Notes),
+and [Spring 5.3 support notice](https://spring.io/blog/2024/08/14/spring-framework-6-1-12-6-0-23-and-5-3-39-available-now/).
+
+The direct blocker is Spring ORM. Spring 5 removed the
+`org.springframework.orm.hibernate4` package and requires Hibernate ORM 5+
+for its ORM integration. NIS production code imports
+`org.springframework.orm.hibernate4.LocalSessionFactoryBuilder` and
+`HibernateTransactionManager`; test configuration also imports the Hibernate
+4 transaction manager. The application is directly pinned to
+`hibernate-entitymanager:4.3.11.Final`, has Hibernate 4 annotations and HQL
+throughout its data model and DAO layer, and has database migrations and
+rollback/state behavior coupled to that mapping. The Spring 5.3.39 JAR
+contains only `org.springframework.orm.hibernate5` integration classes.
+Spring 4→5 also changes the minimum ORM baseline to Hibernate 5 and removes
+other deprecated framework APIs. This is not a dependency-only Spring update:
+it requires an ORM migration and database/transaction compatibility work.
+The modernization plan explicitly reserves that controlled work for Phase
+2E, after the web/runtime line is stable. Mixing it into this Spring-only
+Phase 2D would bypass those migration checks and risks changing persistence
+behavior.
+
+Spring APIs found that need follow-up on a 5.3 candidate include
+`HandlerInterceptorAdapter` in two NIS interceptors and the initializer's
+return type; it is deprecated in Spring 5.3 and removed in Spring 6. No use of
+`WebMvcConfigurerAdapter`, Spring internal APIs, or Spring Security APIs was
+found. The adapter can be reviewed as a small later compatibility change, but
+it does not solve the Hibernate 4 removal.
+
+### Security triage
+
+Spring 4.3 is end-of-life, so this audit does not treat an old version range
+alone as proof of exploitability. NIS uses annotated Spring MVC controllers
+on Jetty. The code scan found no `RouterFunctions`/WebMvc.fn routes,
+`FileSystemResource` functional routes, user-supplied SpEL evaluation, or
+Spring MVC `@RequestBody byte[]` handler. Those repository facts do not match
+the documented preconditions for CVE-2024-38808, CVE-2024-38816,
+CVE-2024-38819, or CVE-2024-38828; the Spring advisories also state that Jetty
+rejects the malicious requests for the functional-resource path traversal
+case. This is exposure triage, not a blanket statement that unsupported
+Spring 4.3 is secure.
+
+Spring 5.3.39 includes the fixes for CVE-2024-38808 and CVE-2024-38809, but
+not the enterprise-only later 5.3 fixes. The current application has no
+functional MVC/SSE code matching CVE-2026-59313's stated preconditions. See
+the official [CVE-2024-38808 advisory](https://spring.io/security/cve-2024-38808/),
+[CVE-2024-38816 advisory](https://spring.io/security/cve-2024-38816/),
+[CVE-2024-38809 advisory](https://spring.io/security/cve-2024-38809/),
+[CVE-2024-38819/38820 release notice](https://spring.io/blog/2024/10/17/spring-framework-cve-2024-38819-and-cve-2024-38820-published/),
+[CVE-2024-38828 notice](https://spring.io/security/cve-2024-38828), and
+[CVE-2026-59313 advisory](https://spring.io/security/cve-2026-59313/).
+
+### Verification and gate
+
+No Spring target was applied, so no post-change Java 11/25 package or unit
+test result is claimed. The Phase 2C results remain the baseline only; they
+do not validate Spring 5.3.39 under NIS's resolved runtime graph. The target
+artifact, runtime graph, and Java 25 reflective-access behavior also remain
+unverified. There is therefore no basis to claim unchanged test discovery,
+production behavior, or package contents for a Spring change.
+
+Phase 2D is **BLOCKED** on the current phase boundary: a coherent Java 11 and
+`javax` Spring candidate is available, but upgrading it removes the required
+Hibernate 4 integration. Resolve and verify the ORM/Hibernate transition in
+its planned phase before retrying the Spring runtime alignment. No Spring,
+Hibernate, Jetty, DB, or production source change was made in this audit.

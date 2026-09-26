@@ -278,6 +278,16 @@ candidate must preserve Java 11 runtime support, existing `javax` interfaces
 unless separately approved, HTTP/WebSocket behavior, startup, and Spring ORM
 integration. This wave should include the CGLIB/reflection workaround test.
 
+**Phase 2D status: BLOCKED.** The audit found NIS resolves Spring
+`4.3.30.RELEASE` while Deploy is compiled against `5.3.39`. Aligning NIS to
+the Java 11-compatible Spring 5.3 line removes Spring's Hibernate 4 ORM
+integration, which NIS uses in production configuration and tests. The
+required Hibernate 4→5 compatibility and database/transaction verification
+belongs to the planned ORM wave; applying it here would combine web and ORM
+migrations without the required persistence checks. No dependency or source
+change was made. The full dependency/API/security audit is recorded in
+`build-test-modernization.md`.
+
 Required verification: startup without the production open where possible,
 HTTP/WebSocket smoke tests, controller serialization, peer/deploy startup,
 and consensus/state regression snapshots.
