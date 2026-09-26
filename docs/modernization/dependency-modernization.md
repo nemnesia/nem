@@ -320,12 +320,17 @@ and [Hibernate ORM 5.4 compatibility and artifacts](https://hibernate.org/orm/re
 
 Hibernate 5.4 merges EntityManager into `hibernate-core`, so NIS replaces
 `hibernate-entitymanager:4.3.11.Final` with `hibernate-core:5.4.33.Final`.
-`hibernate-core` supplies `javax.persistence-api:2.2`, Javassist, Byte Buddy,
-JBoss Logging, the transaction API, JAXB 2.3, and activation. The ORM requires
-Byte Buddy for its default proxy provider; NIS aligns that runtime dependency
-to `1.17.7`, which also satisfies the existing Mockito 5 test engine. Mockito,
-its agent, Objenesis, JUnit, and Spring Test remain test-scoped. H2 `1.4.200`
-and Flyway `3.2.1` stay unchanged.
+`hibernate-core` supplies `javax.persistence-api:2.2`, Javassist, JBoss
+Logging, the transaction API, JAXB 2.3, and activation. Its default Byte Buddy
+proxy provider would add Byte Buddy to production runtime, which is disallowed
+by this phase's runtime-graph constraint. NIS selects Hibernate 5.4's
+supported Javassist provider with `hibernate.bytecode.provider=javassist` and
+excludes Byte Buddy from `hibernate-core`. Mockito supplies Byte Buddy
+`1.17.7` and its agent only in test scope. Hibernate 5.4 documents both
+provider names in its [Environment Javadoc](https://docs.hibernate.org/orm/5.4/javadocs/org/hibernate/cfg/Environment.html)
+and describes the [bytecode provider boundary](https://docs.hibernate.org/orm/5.4/javadocs/org/hibernate/bytecode/package-summary.html).
+The full DAO/lazy-loading suite and runtime smoke below verify the provider
+choice. H2 `1.4.200` and Flyway `3.2.1` stay unchanged.
 
 Spring 5.3 and Hibernate 5.4 both officially list Java 11 compatibility. Java
 25 is outside the published Spring 5.3 and Hibernate 5.4 support matrices and
@@ -362,11 +367,11 @@ The runtime dependency tree resolves all Spring Framework artifacts to
 `5.3.39`; no Spring 4 artifact remains. NIS resolves one Hibernate line,
 `hibernate-core:5.4.33.Final`, and one `javax.persistence-api:2.2`; no
 Hibernate 4 core or `hibernate-entitymanager` remains. Javassist is
-`3.27.0-GA`; Hibernate's default Byte Buddy proxy provider requires
-`byte-buddy:1.17.7` in production runtime, replacing Hibernate's older
-`1.11.12` request. The Mockito agent, Objenesis, JUnit, WireMock, and
-`spring-test` are absent from the production runtime tree and copied
-`nis/target/libs`. JAXB 2.3 and activation 1.2 resolve as runtime libraries;
+`3.27.0-GA` and is the selected proxy provider. Byte Buddy and its agent,
+Mockito, Objenesis, JUnit, WireMock, and `spring-test` are absent from the
+production runtime tree and copied `nis/target/libs`; the test tree resolves
+Mockito's Byte Buddy `1.17.7` and agent as test-only dependencies. JAXB 2.3
+and activation 1.2 resolve as runtime libraries;
 the transaction API resolves to `jboss-transaction-api_1.2_spec:1.1.1.Final`.
 H2 and Flyway versions are unchanged.
 
@@ -383,7 +388,7 @@ Verification results:
 | Existing Testnet DB copy | Read-only Hibernate open and representative HQL reads PASS: schema 1.0.7, 5,000 blocks, max height 5,000, 100 accounts. Full NIS startup stopped at the genesis-hash check. The starting-commit Hibernate 4 application stops at the same check against this copy and reports the same expected genesis hash, so this mismatch predates Phase 2E. Full chain-state comparison against this snapshot is **not verified**. Original and copy SHA-256 hashes were identical before/after. |
 | Java 25 startup without `--add-opens` | PASS on the fresh migrated database: NIS/Deploy started; `/heartbeat`, `/chain/height`, and `/w/messages/info` returned HTTP 200 with JSON responses |
 | Java 25 startup with `--add-opens=java.base/java.lang=ALL-UNNAMED` | PASS on the same smoke setup and endpoints. The existing JVM workaround was not removed from configuration. |
-| Artifact comparison | Same-JDK Java 11 baseline/final JAR names match. Core main/test JAR entries: 352/485 in both; Deploy 31/25; Peer 80/88; NIS main 622. No production class or JAR entry additions/removals. The retained baseline snapshot did not contain an NIS test JAR. NIS copied runtime libraries changed from 71 to 77, replacing Spring 4/Hibernate 4 and their JPA/JAXB/transaction dependencies with the selected versions. Timestamp/raw hash differences are not treated as behavior changes. |
+| Artifact comparison | Same-JDK Java 11 baseline/final JAR names match. Core main/test JAR entries: 352/485 in both; Deploy 31/25; Peer 80/88; NIS main: 622→623 (one added `hibernate.properties`). No production class additions/removals. Other compared module JAR entry counts are unchanged. The retained baseline snapshot did not contain an NIS test JAR. NIS copied runtime libraries change from 71 to 76, replacing Spring 4/Hibernate 4 and their JPA/JAXB/transaction dependencies with the selected versions. Timestamp/raw hash differences are not treated as behavior changes. |
 
 All entity mapping source, migration SQL, H2/Flyway configuration, HQL/native
 SQL text, persistent state format, and production transaction/rollback
@@ -398,11 +403,13 @@ Spring 5.3 API.
 
 Remaining risks: Java 25 is an empirical target outside the published support
 matrices of Spring 5.3 and Hibernate 5.4; both selected lines are end-of-life.
-The Java 25 suite retains one environment-dependent peer-network error. The
-available Testnet database copy can be mapped and read, but its genesis
-identity prevents a full application chain-state comparison. A matching
-Mainnet/Testnet database snapshot is still needed for complete persisted-state
-compatibility evidence.
+Hibernate 5.4 emits a deprecation warning for its Javassist provider and says
+it may be removed in a later ORM line, so the provider choice must be revisited
+before that upgrade. The Java 25 suite retains one environment-dependent
+peer-network error. The available Testnet database copy can be mapped and
+read, but its genesis identity prevents a full application chain-state
+comparison. A matching Mainnet/Testnet database snapshot is still needed for
+complete persisted-state compatibility evidence.
 
 ### Phase 2F — H2/Flyway database compatibility
 
