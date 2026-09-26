@@ -75,7 +75,20 @@ Both Jetty 9 and Jetty 12 control POMs/probes reported `BUILD SUCCESS`. Jetty 9 
 
 Java 17 local runtime validation was unavailable. The Java 25 root `mvn -B clean test` succeeded with **624 classes / 6,218 tests, 0 failures, 0 errors, 0 skipped** after being run with loopback socket permission. The first sandboxed attempt produced 16 Core test errors because socket operations were denied; that run was environmental, not a code failure. Aggregated Surefire reports confirm the Phase 2H test discovery baseline remains unchanged. Root `mvn -B -DskipTests package` succeeded.
 
-The Jetty control launchers compile with Maven compiler `release=17` but ran on Java 25. This does not establish Java 17 runtime compatibility. Hosted Java 17 / Java 25 workflow results for the final commit are added after push. Jenkins Java 17 execution remains externally blocked and was not validated in this phase.
+The Jetty control launchers compile with Maven compiler `release=17` but ran on Java 25. This does not establish Java 17 runtime compatibility. On implementation commit `ff697e4c0ecb4484e1553034a6939ade0850bcee`, hosted validation passed:
+
+- [Java 17 Baseline run 36244005123](https://github.com/nemnesia/nem/actions/runs/36244005123): clean tests and package succeeded.
+- [Java 25 Compatibility run 36244005124](https://github.com/nemnesia/nem/actions/runs/36244005124): clean tests and package succeeded.
+
+Jenkins Java 17 execution remains externally blocked and was not validated in this phase.
+
+The probes can be rerun after installing the current reactor artifacts into a writable local Maven repository:
+
+```bash
+mvn -B -Dmaven.repo.local=/tmp/nem-modernization-m2 -pl nis -am -DskipTests install
+mvn -B -Dmaven.repo.local=/tmp/nem-modernization-m2 -f docs/modernization/phase-2i-g-poc/pom.xml clean compile exec:java -Dexec.mainClass=org.nem.nis.websocket.Jetty9SockJsControl
+mvn -B -Dmaven.repo.local=/tmp/nem-modernization-m2 -f docs/modernization/phase-2i-g-poc/pom-jetty12.xml clean compile exec:java -Dexec.mainClass=org.nem.nis.websocket.Jetty12SockJsControl
+```
 
 The Phase 2H Failsafe conditions remain unchanged; Failsafe was not run here. Phase 2F also remains unchanged: H2 1.4 database files require offline export/import; Flyway history/checksum constraints remain; representative Mainnet/Testnet database validation and matching-genesis full chain-state comparison remain outstanding.
 
