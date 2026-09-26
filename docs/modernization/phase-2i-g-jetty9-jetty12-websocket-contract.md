@@ -82,6 +82,8 @@ The Jetty control launchers compile with Maven compiler `release=17` but ran on 
 
 Jenkins Java 17 execution remains externally blocked and was not validated in this phase.
 
+The later documentation-only follow-up commit `529e03c621ba5f3df2fc9c0f6116fcb7d85f670e` triggered new runs. Both `Run clean unit tests` steps failed and package steps were skipped: [Java 17 Baseline run 36244248602](https://github.com/nemnesia/nem/actions/runs/36244248602), [Java 25 Compatibility run 36244248540](https://github.com/nemnesia/nem/actions/runs/36244248540). The public API exposes only the failed step result; requesting the job-log archive returned HTTP 403, so the failing test/cause could not be determined. No production or test source changed between the passing implementation commit and this docs-only commit. Treat these final-head CI runs as unresolved failures, not as passing validation or proven regressions.
+
 The probes can be rerun after installing the current reactor artifacts into a writable local Maven repository:
 
 ```bash
