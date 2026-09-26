@@ -1,0 +1,30 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.nem.experiments</groupId>
+  <artifactId>jetty12-ee8-spring53-websocket-poc</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <spring.version>5.3.39</spring.version>
+    <jetty.version>12.1.13</jetty.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  <dependencies>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-webmvc</artifactId><version>${spring.version}</version></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-websocket</artifactId><version>${spring.version}</version></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-messaging</artifactId><version>${spring.version}</version></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-server</artifactId><version>${jetty.version}</version></dependency>
+    <dependency><groupId>org.eclipse.jetty.ee8</groupId><artifactId>jetty-ee8-servlet</artifactId><version>${jetty.version}</version></dependency>
+    <dependency><groupId>org.eclipse.jetty.ee8.websocket</groupId><artifactId>jetty-ee8-websocket-javax-server</artifactId><version>${jetty.version}</version></dependency>
+    <dependency><groupId>net.minidev</groupId><artifactId>json-smart</artifactId><version>2.6.0</version></dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-clean-plugin</artifactId><version>3.5.0</version></plugin>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.1</version><configuration><release>17</release></configuration></plugin>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.6</version></plugin>
+      <plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.5.0</version></plugin>
+    </plugins>
+  </build>
+</project>
