@@ -1,0 +1,37 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.nem.experiments</groupId>
+  <artifactId>nis-jetty12-ee8-integration-poc</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <spring.version>5.3.39</spring.version>
+    <jetty.version>12.1.13</jetty.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.nem.nis</groupId><artifactId>nem-infrastructure-server</artifactId><version>0.6.102</version>
+      <exclusions>
+        <exclusion><groupId>org.eclipse.jetty</groupId><artifactId>*</artifactId></exclusion>
+        <exclusion><groupId>org.eclipse.jetty.websocket</groupId><artifactId>*</artifactId></exclusion>
+      </exclusions>
+    </dependency>
+    <dependency><groupId>org.nem.core</groupId><artifactId>nem-core</artifactId><version>0.6.102</version><type>test-jar</type></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-server</artifactId><version>${jetty.version}</version></dependency>
+    <dependency><groupId>org.eclipse.jetty.ee8</groupId><artifactId>jetty-ee8-servlet</artifactId><version>${jetty.version}</version></dependency>
+    <dependency><groupId>org.eclipse.jetty.ee8.websocket</groupId><artifactId>jetty-ee8-websocket-javax-server</artifactId><version>${jetty.version}</version></dependency>
+    <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><version>5.22.0</version></dependency>
+    <dependency><groupId>net.minidev</groupId><artifactId>json-smart</artifactId><version>2.6.0</version></dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-clean-plugin</artifactId><version>3.5.0</version></plugin>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-jar-plugin</artifactId><version>3.5.0</version></plugin>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.15.0</version><configuration><release>17</release><includes><include>org/nem/nis/websocket/Jetty12SockJsControl.java</include></includes></configuration></plugin>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.6</version></plugin>
+      <plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.5.0</version></plugin>
+    </plugins>
+  </build>
+</project>
