@@ -2,7 +2,7 @@ name: Java 25 Compatibility
 
 'on':
   push:
-    branches: [dev, main]
+    branches: [dev, main, agent/nis-phase0-baseline]
   pull_request:
     branches: [dev]
   workflow_dispatch:
@@ -24,8 +24,13 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Build package
-        run: mvn -B clean package -DskipTests
+      - name: Show Java and Maven versions
+        run: |
+          java -version
+          mvn -version
 
-      - name: Run unit tests
-        run: mvn -B test
+      - name: Run clean unit tests
+        run: mvn -B clean test
+
+      - name: Package modules
+        run: mvn -B -DskipTests package
