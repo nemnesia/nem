@@ -50,8 +50,11 @@ This override is an explicit limitation: it validates the rest of the real NIS W
 Reproduction after installing the current reactor artifacts into a writable local Maven repository:
 
 ```bash
+cd <repository-root>
+mvn -B -Dmaven.repo.local=/tmp/nem-phase2if-m2 -pl nis -am -DskipTests install
 cd docs/modernization/phase-2i-f-poc
-mvn -B clean package exec:java -Dexec.mainClass=org.nem.nis.websocket.NisIntegrationProbe
+mvn -B -Dmaven.repo.local=/tmp/nem-phase2if-m2 clean package exec:java \
+  -Dexec.mainClass=org.nem.nis.websocket.NisIntegrationProbe
 ```
 
 The integration run used Java 25 because Java 17 is unavailable in this environment. Maven compiled the harness with `--release 17`; this is not a Java 17 runtime verification.
@@ -91,7 +94,12 @@ The harness does not create a production `NemWebsockServerBootstrapper`, run the
 
 The workspace has Java 25 but no Java 17 installation, so the required local `mvn -B clean test` under Java 17 could not be run. The available Java 25 `mvn -B clean test` discovered 624 classes / 6,218 tests and ended with **0 failures, 2 errors, 0 skipped**. Both errors were `NisPeerNetworkHostTest` public-peer boot tests (`isNetworkBootingReturnsFalseIfNetworkIsBooted` and `isNetworkBootedReturnsTrueIfNetworkIsBooted`) failing with `IllegalStateException: network boot failed` while reaching public peers. This is the known environment-dependent network failure category; there were no other Surefire failures/errors. It is not counted as a clean suite pass.
 
-`JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 mvn -B -DskipTests package` succeeded. The test-only integration harness compiled/package-built and its runtime probe completed on Java 25. These results do not replace Java 17 verification. Hosted Java 17 / Java 25 checks for the final pushed commit must be recorded after the push.
+`JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 mvn -B -DskipTests package` succeeded. The test-only integration harness compiled/package-built and its runtime probe completed on Java 25. These results do not replace Java 17 verification.
+
+Hosted Actions for implementation commit `8c319b5d2869ba5f6d8fe06220ce3c20990125bc` both completed successfully, including clean tests and package:
+
+- [Java 17 Baseline run 36242299887](https://github.com/nemnesia/nem/actions/runs/36242299887) — Temurin 17; `mvn -B clean test` and `mvn -B -DskipTests package` succeeded.
+- [Java 25 Compatibility run 36242299847](https://github.com/nemnesia/nem/actions/runs/36242299847) — Temurin 25; `mvn -B clean test` and `mvn -B -DskipTests package` succeeded.
 
 Failsafe was not run. Phase 2H's recorded Failsafe baseline (Core timing case; NIS 9 failures / 21 errors / 2 skipped, including external-peer and legacy H2-file issues) remains unchanged and was not treated as solved here.
 
