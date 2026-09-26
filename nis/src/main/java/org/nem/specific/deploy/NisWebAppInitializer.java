@@ -20,6 +20,7 @@ import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 		"org.nem.nis.controller", "org.nem.nis.a"
 })
 // @EnableWebMvc // this cannot be present, when using WebMvcConfigurationSupport
+@SuppressWarnings("deprecation")
 public class NisWebAppInitializer extends WebMvcConfigurationSupport {
 	@Autowired
 	private AccountLookup accountLookup;

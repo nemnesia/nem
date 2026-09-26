@@ -15,7 +15,7 @@ import org.nem.nis.mappers.*;
  * Class that loads blocks from the database. <br>
  * This class is used as an implementation detail of BlockDao and is tested mainly through those tests.
  */
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({ "rawtypes", "deprecation" })
 public class BlockLoader {
 	private static final int NUM_MULTISIG_COLUMNS = 17;
 	private static final String[] MULTISIG_SIGNATURES_COLUMNS = {

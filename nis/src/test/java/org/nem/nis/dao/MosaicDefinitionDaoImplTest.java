@@ -4,6 +4,7 @@ import java.util.*;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.*;
 import org.hibernate.*;
+import org.hibernate.query.NativeQuery;
 import org.hibernate.type.LongType;
 import org.junit.*;
 import org.mockito.Mockito;
@@ -14,6 +15,7 @@ import org.nem.core.test.Utils;
 import org.nem.nis.dao.retrievers.*;
 import org.nem.nis.dbmodel.*;
 
+@SuppressWarnings({ "deprecation", "rawtypes" })
 public class MosaicDefinitionDaoImplTest {
 
 	// region getMosaicDefinition
@@ -208,7 +210,7 @@ public class MosaicDefinitionDaoImplTest {
 		private final MosaicDefinitionRetriever retriever = Mockito.mock(MosaicDefinitionRetriever.class);
 		private final MosaicSupplyRetriever supplyRetriever = Mockito.mock(MosaicSupplyRetriever.class);
 		private final Session session = Mockito.mock(Session.class);
-		private final SQLQuery sqlQuery = Mockito.mock(SQLQuery.class);
+		private final NativeQuery sqlQuery = Mockito.mock(NativeQuery.class);
 		private final MosaicDefinitionDaoImpl mosaicDefinitionDao = new MosaicDefinitionDaoImpl(this.sessionFactory, this.retriever,
 				this.supplyRetriever);
 

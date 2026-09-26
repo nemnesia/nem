@@ -10,6 +10,7 @@ import org.nem.nis.dbmodel.*;
 /**
  * Class for for retrieving provision namespace transactions.
  */
+@SuppressWarnings("deprecation")
 public class ProvisionNamespaceRetriever implements TransactionRetriever {
 
 	@Override

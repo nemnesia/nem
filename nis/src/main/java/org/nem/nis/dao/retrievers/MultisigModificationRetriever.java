@@ -9,6 +9,7 @@ import org.nem.nis.dbmodel.*;
 /**
  * Class for for retrieving multisig modification transactions.
  */
+@SuppressWarnings({ "deprecation", "rawtypes" })
 public class MultisigModificationRetriever implements TransactionRetriever {
 
 	@Override

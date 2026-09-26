@@ -9,6 +9,7 @@ import org.nem.core.model.Address;
 /**
  * Helper class containing functions to facilitate working with dao classes.
  */
+@SuppressWarnings({ "deprecation", "rawtypes" })
 public class DaoUtils {
 
 	/**

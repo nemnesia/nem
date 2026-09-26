@@ -6,6 +6,7 @@ import org.hibernate.*;
 /**
  * Helper class containing hibernate utility functions.
  */
+@SuppressWarnings({ "deprecation", "rawtypes" })
 public class HibernateUtils {
 
 	/**

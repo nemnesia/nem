@@ -1,6 +1,6 @@
 # NIS build and test infrastructure modernization
 
-Status: Phase 2B and Phase 2C complete; Phase 2D blocked by Hibernate 4 coupling<br>
+Status: Phase 2B and Phase 2C complete; Phase 2D blocker resolved by coupled Phase 2E<br>
 Audit date: 2026-09-07<br>
 Repository: `nemnesia/nem`<br>
 Branch: `agent/nis-phase0-baseline`<br>
@@ -417,7 +417,7 @@ destination. See the upstream [version/JDK matrix](https://github.com/spring-pro
 [Spring 5.0 upgrade notes](https://github.com/spring-projects/spring-framework/wiki/Spring-Framework-5.0-Release-Notes),
 and [Spring 5.3 support notice](https://spring.io/blog/2024/08/14/spring-framework-6-1-12-6-0-23-and-5-3-39-available-now/).
 
-The direct blocker is Spring ORM. Spring 5 removed the
+The Phase 2D historical blocker was Spring ORM. Spring 5 removed the
 `org.springframework.orm.hibernate4` package and requires Hibernate ORM 5+
 for its ORM integration. NIS production code imports
 `org.springframework.orm.hibernate4.LocalSessionFactoryBuilder` and
@@ -430,10 +430,26 @@ contains only `org.springframework.orm.hibernate5` integration classes.
 Spring 4→5 also changes the minimum ORM baseline to Hibernate 5 and removes
 other deprecated framework APIs. This is not a dependency-only Spring update:
 it requires an ORM migration and database/transaction compatibility work.
-The modernization plan explicitly reserves that controlled work for Phase
-2E, after the web/runtime line is stable. Mixing it into this Spring-only
-Phase 2D would bypass those migration checks and risks changing persistence
-behavior.
+The initial plan placed that controlled work in Phase 2E after the web/runtime
+line was stable, creating a circular dependency. Phase 2E now resolves this
+blocker as one coupled Spring 5.3.39 / Hibernate 5.4.33 compatibility change.
+It aligns with Spring 5.3's Hibernate 5.4 integration and Hibernate's explicit
+Java 11 compatibility from 5.4.32 onward, while retaining `javax.persistence`.
+Phase 2D's recorded BLOCKED status is historical and remains in
+`dependency-modernization.md`; no Spring-only intermediate configuration was
+introduced.
+
+Hibernate 5.4 folds EntityManager into `hibernate-core`. The migration replaces
+`hibernate-entitymanager:4.3.11.Final` with `hibernate-core:5.4.33.Final`,
+changes the Spring ORM package imports and Hibernate 5 native query test mocks,
+and uses Spring 5.3's allowed-origin-pattern API to preserve the existing
+all-origin SockJS policy with credentialed requests. Hibernate 5's legacy
+`Query`, `SQLQuery`, and Criteria APIs remain
+available, so HQL/native SQL statements and legacy DAO query shapes were not
+rewritten. NIS's setup and cleanup test DML now uses explicit local
+transactions, matching Hibernate 5's transaction requirement without
+changing production transaction boundaries. Detailed verification results
+and current risks are recorded in `dependency-modernization.md`.
 
 Spring APIs found that need follow-up on a 5.3 candidate include
 `HandlerInterceptorAdapter` in two NIS interceptors and the initializer's
@@ -474,8 +490,17 @@ artifact, runtime graph, and Java 25 reflective-access behavior also remain
 unverified. There is therefore no basis to claim unchanged test discovery,
 production behavior, or package contents for a Spring change.
 
-Phase 2D is **BLOCKED** on the current phase boundary: a coherent Java 11 and
-`javax` Spring candidate is available, but upgrading it removes the required
-Hibernate 4 integration. Resolve and verify the ORM/Hibernate transition in
-its planned phase before retrying the Spring runtime alignment. No Spring,
-Hibernate, Jetty, DB, or production source change was made in this audit.
+At the time of this Phase 2D audit, the phase was **BLOCKED**: a coherent Java
+11 and `javax` Spring candidate was available, but upgrading it removed the
+required Hibernate 4 integration. That historical status remains recorded.
+The subsequent Phase 2E implementation resolved this dependency through a
+coupled Spring/Hibernate change. Its Java 11/25, startup, database, and artifact
+results are recorded in [dependency-modernization.md](dependency-modernization.md).
+
+Phase 2E's Java 11 clean package passed with the Phase 2C baseline discovery
+of 624 classes and 6,218 tests, all passing with no skips. A later repeat
+encountered two external peer-network errors. The final Java 25 clean package
+reached the same discovery count but retained one public-peer/network error;
+a separate Java 25 package with tests skipped passed. These are recorded
+against the Phase 2C network-dependent baseline in the dependency
+modernization record. No test discovery decrease was observed.

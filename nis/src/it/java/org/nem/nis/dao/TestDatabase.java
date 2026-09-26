@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 
 @ContextConfiguration(classes = TestConfHardDisk.class)
+@SuppressWarnings({ "deprecation", "rawtypes" })
 public class TestDatabase {
 	private static final Logger LOGGER = Logger.getLogger(TestDatabase.class.getName());
 

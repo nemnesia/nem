@@ -10,6 +10,7 @@ import org.nem.nis.dbmodel.*;
 /**
  * Class for for retrieving importance transfer transactions.
  */
+@SuppressWarnings("deprecation")
 public class ImportanceTransferRetriever implements TransactionRetriever {
 
 	@Override

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@SuppressWarnings({ "deprecation", "rawtypes" })
 public class AccountDaoImpl implements AccountDao {
 	private final SessionFactory sessionFactory;
 

@@ -4,6 +4,7 @@ import java.util.*;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.*;
 import org.hibernate.*;
+import org.hibernate.query.NativeQuery;
 import org.hibernate.type.LongType;
 import org.junit.*;
 import org.mockito.Mockito;
@@ -13,6 +14,7 @@ import org.nem.core.test.Utils;
 import org.nem.nis.dao.retrievers.NamespaceRetriever;
 import org.nem.nis.dbmodel.DbNamespace;
 
+@SuppressWarnings({ "deprecation", "rawtypes" })
 public class NamespaceDaoTest {
 
 	@Test
@@ -94,7 +96,7 @@ public class NamespaceDaoTest {
 		private final SessionFactory sessionFactory = Mockito.mock(SessionFactory.class);
 		private final NamespaceRetriever retriever = Mockito.mock(NamespaceRetriever.class);
 		private final Session session = Mockito.mock(Session.class);
-		private final SQLQuery sqlQuery = Mockito.mock(SQLQuery.class);
+		private final NativeQuery sqlQuery = Mockito.mock(NativeQuery.class);
 		private final NamespaceDaoImpl namespaceDao = new NamespaceDaoImpl(this.sessionFactory, this.retriever);
 
 		private TestContext() {

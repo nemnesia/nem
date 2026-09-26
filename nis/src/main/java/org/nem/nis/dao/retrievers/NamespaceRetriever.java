@@ -10,6 +10,7 @@ import org.nem.nis.dbmodel.DbNamespace;
 /**
  * Class for for retrieving namespaces for a given account.
  */
+@SuppressWarnings({ "deprecation", "rawtypes" })
 public class NamespaceRetriever {
 
 	/**

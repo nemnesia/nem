@@ -10,6 +10,7 @@ import org.nem.nis.dbmodel.*;
 /**
  * Class for for retrieving transfer transactions.
  */
+@SuppressWarnings("deprecation")
 public class TransferRetriever implements TransactionRetriever {
 
 	@Override

@@ -10,6 +10,7 @@ import org.nem.nis.dbmodel.*;
 /**
  * Class for for retrieving mosaic supply change transactions.
  */
+@SuppressWarnings("deprecation")
 public class MosaicSupplyChangeRetriever implements TransactionRetriever {
 
 	@Override

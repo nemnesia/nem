@@ -11,6 +11,7 @@ import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 /**
  * An interceptor that prevents access to most NIS functions while the block chain is loading.
  */
+@SuppressWarnings("deprecation")
 public class BlockLoadingInterceptor extends HandlerInterceptorAdapter {
 	private static final Logger LOGGER = Logger.getLogger(BlockLoadingInterceptor.class.getName());
 

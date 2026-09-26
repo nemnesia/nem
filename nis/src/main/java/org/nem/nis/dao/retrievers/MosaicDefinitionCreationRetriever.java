@@ -10,6 +10,7 @@ import org.nem.nis.dbmodel.*;
 /**
  * Class for for retrieving mosaic definition creation transactions.
  */
+@SuppressWarnings("deprecation")
 public class MosaicDefinitionCreationRetriever implements TransactionRetriever {
 	@Override
 	public Collection<TransferBlockPair> getTransfersForAccount(final Session session, final long accountId, final long maxId,

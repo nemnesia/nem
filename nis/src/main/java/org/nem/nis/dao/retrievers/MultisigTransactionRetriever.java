@@ -12,7 +12,7 @@ import org.nem.nis.mappers.TransactionRegistry;
 /**
  * Class for for retrieving multisig transactions.
  */
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({ "rawtypes", "deprecation" })
 public class MultisigTransactionRetriever implements TransactionRetriever {
 	private static final Map<Integer, String> TYPE_TO_FIELD_NAME_MAP = TransactionRegistry.stream().filter(e -> null != e.multisigJoinField)
 			.collect(Collectors.toMap(e -> e.type, e -> e.multisigJoinField));

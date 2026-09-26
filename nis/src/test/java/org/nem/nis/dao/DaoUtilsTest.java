@@ -67,11 +67,13 @@ public class DaoUtilsTest {
 	}
 
 	private void createAccounts(final int count) {
-		for (int i = 0; i < count; i++) {
-			final Address address = ACCOUNTS.get(i).getAddress();
-			final String statement = String.format("Insert into accounts (printableKey, publicKey) values('%s', '%s')", address.toString(),
-					address.getPublicKey().toString());
-			this.session.createSQLQuery(statement).executeUpdate();
-		}
+		DbTestUtils.executeInTransaction(this.session, () -> {
+			for (int i = 0; i < count; i++) {
+				final Address address = ACCOUNTS.get(i).getAddress();
+				final String statement = String.format("Insert into accounts (printableKey, publicKey) values('%s', '%s')", address.toString(),
+						address.getPublicKey().toString());
+				this.session.createSQLQuery(statement).executeUpdate();
+			}
+		});
 	}
 }

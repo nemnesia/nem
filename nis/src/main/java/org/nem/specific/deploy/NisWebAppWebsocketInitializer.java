@@ -25,6 +25,7 @@ import org.springframework.web.socket.sockjs.frame.AbstractSockJsMessageCodec;
 @Configuration
 @ComponentScan("org.nem.nis.websocket")
 @EnableWebSocketMessageBroker
+@SuppressWarnings("deprecation")
 public class NisWebAppWebsocketInitializer extends AbstractWebSocketMessageBrokerConfigurer {
 
 	@Override
@@ -82,7 +83,7 @@ public class NisWebAppWebsocketInitializer extends AbstractWebSocketMessageBroke
 
 	@Override
 	public void registerStompEndpoints(final StompEndpointRegistry registry) {
-		registry.addEndpoint("/messages").setAllowedOrigins("*").withSockJS().setMessageCodec(new AbstractSockJsMessageCodec() {
+		registry.addEndpoint("/messages").setAllowedOriginPatterns("*").withSockJS().setMessageCodec(new AbstractSockJsMessageCodec() {
 			@Override
 			public String[] decode(String s) {
 				return new String[]{

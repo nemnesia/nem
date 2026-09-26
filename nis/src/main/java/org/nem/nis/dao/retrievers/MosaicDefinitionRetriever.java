@@ -11,6 +11,7 @@ import org.nem.nis.dbmodel.DbMosaicDefinition;
 /**
  * Class for for retrieving mosaic definitions.
  */
+@SuppressWarnings({ "deprecation", "rawtypes" })
 public class MosaicDefinitionRetriever {
 
 	/**

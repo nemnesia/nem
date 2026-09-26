@@ -105,7 +105,7 @@ upgrade in Phase 2A.
 | Classification | Candidate | Repository evidence and handling |
 | --- | --- | --- |
 | `REQUIRED` | `org.mockito:mockito-all 1.10.19` | Test-only dependency. Phase 1 required reflective-access workarounds on the supported JDKs. Replace the bundled 1.x artifact with a maintained test dependency in an isolated test wave; preserve test assertions and run the Java 11/25 matrix. |
-| `REQUIRED` | Spring Framework `4.3.30.RELEASE` | NIS runtime uses Spring Core/ORM/WebMVC/WebSocket/Messaging and Java 25 startup still needs `--add-opens=java.base/java.lang=ALL-UNNAMED` because of the old reflection path. The 4.3 line is EOL, so a supported replacement/upgrade must be planned, but it is a coupled runtime wave. |
+| `REQUIRED` | Spring Framework `4.3.30.RELEASE` | At the Phase 2A audit, NIS runtime used Spring Core/ORM/WebMVC/WebSocket/Messaging and Java 25 startup needed `--add-opens=java.base/java.lang=ALL-UNNAMED` for the old reflection path. Phase 2E replaces that runtime line; the 4.3 line is EOL. |
 | `REQUIRED` | Jetty `9.4.x` runtime/websocket line | NIS exposes HTTP/WebSocket functionality and the repository uses an EOL Jetty line. The NIS and deploy POMs also select different patch versions. Security/support remediation must be tested as a web-stack wave, not as a blind version bump. |
 | `RECOMMENDED` | H2 `1.4.200` | Embedded file H2 is the production database and test database. The repository does not start the H2 Console, but this version is below the upstream-patched version for the H2 Console RCE advisory. A future change should first prove the actual deployment exposure and replay/migration compatibility. |
 | `RECOMMENDED` | Flyway `3.2.1` | Flyway is constructed directly by `NisAppConfig`, runs `db/h2` migrations during startup, and is a dependency of both production and database tests. It is old and tightly coupled to H2 migration parsing/order; upgrade only with migration replay evidence. |
@@ -129,16 +129,18 @@ MVC, WebSocket, and messaging. `SessionFactoryLoader` uses Spring's
 `hibernate4` integration. This makes a Spring change a coherent family change,
 not a single-artifact update.
 
-The Java 25 profile currently keeps the production runtime workaround out of
-the normal test/build configuration. A bounded startup smoke test required
-`--add-opens=java.base/java.lang=ALL-UNNAMED` for legacy Spring/CGLIB class
-definition behavior. The old Mockito artifact separately requires test JVM
-opens. Therefore:
+At the Phase 2A audit, the Java 25 profile kept the production runtime
+workaround out of the normal test/build configuration. A bounded startup smoke
+test with Spring 4.3 required `--add-opens=java.base/java.lang=ALL-UNNAMED`
+for legacy Spring/CGLIB class definition behavior. Phase 2E's Java 25 smoke
+starts with and without this open, as recorded below. The old Mockito artifact
+separately required test JVM opens. Therefore:
 
 - Mockito can be modernized as a test-only wave, subject to test API changes
   and Java 21+ agent/instrumentation behavior.
-- The production `java.lang` open must remain until the selected Spring/web
-  stack has been tested without it.
+- The production `java.lang` open should remain until the selected Spring/web
+  stack has been tested without it. Phase 2E provides that smoke evidence, but
+  did not remove any configured JVM workaround.
 - Jetty, servlet API, Spring WebMVC/WebSocket, and the deploy module must be
   tested as one web/runtime compatibility set. The current `javax.servlet`
   API makes a Jakarta namespace migration a separate decision.
@@ -288,19 +290,119 @@ migrations without the required persistence checks. No dependency or source
 change was made. The full dependency/API/security audit is recorded in
 `build-test-modernization.md`.
 
+This was the status at the Phase 2D audit boundary. The history is retained;
+the coupled compatibility change in Phase 2E below resolves its ORM blocker.
+
 Required verification: startup without the production open where possible,
 HTTP/WebSocket smoke tests, controller serialization, peer/deploy startup,
 and consensus/state regression snapshots.
 
 ### Phase 2E — ORM and validation compatibility
 
-Only after the web/runtime family is stable, evaluate Hibernate EntityManager,
-Hibernate Validator, and their bytecode/JPA dependencies as a controlled
-persistence wave. Keep schema and migrations unchanged.
+**Phase 2D remains recorded as BLOCKED.** Its blocker was the Hibernate 4
+integration required to move NIS from Spring 4.3 to Spring 5.3. That history is
+retained; the compatibility work below resolves the blocker as a coupled
+Spring/ORM change rather than treating Hibernate migration as a Spring 4-only
+intermediate state.
+
+The selected combination is Spring Framework `5.3.39` with Hibernate ORM
+`5.4.33.Final`. Spring 5.3 requires Hibernate 5.2 or later for native ORM
+integration and its 5.3.39 reference recommends Hibernate 5.4 for a new
+SessionFactory setup. Hibernate's official compatibility information lists
+Java 11 from Hibernate 5.4.32 onward and JPA 2.2, preserving the existing
+`javax.persistence` namespace. Hibernate 5.2/5.3 do not meet the same explicit
+Java 11 line. Spring 4.3's Hibernate 5 integration would therefore create an
+intermediate, older ORM pairing followed by a second Spring migration; it is
+not the chosen path. Spring 5.3.39 is the same version already used by Deploy.
+References: [Spring 5.3.39 data-access reference](https://docs.spring.io/spring-framework/docs/5.3.39/reference/pdf/data-access.pdf),
+[Spring 5.3.39 LocalSessionFactoryBuilder Javadoc](https://docs.spring.io/spring-framework/docs/5.3.39/javadoc-api/org/springframework/orm/hibernate5/LocalSessionFactoryBuilder.html),
+and [Hibernate ORM 5.4 compatibility and artifacts](https://hibernate.org/orm/releases/5.4/).
+
+Hibernate 5.4 merges EntityManager into `hibernate-core`, so NIS replaces
+`hibernate-entitymanager:4.3.11.Final` with `hibernate-core:5.4.33.Final`.
+`hibernate-core` supplies `javax.persistence-api:2.2`, Javassist, Byte Buddy,
+JBoss Logging, the transaction API, JAXB 2.3, and activation. The ORM requires
+Byte Buddy for its default proxy provider; NIS aligns that runtime dependency
+to `1.17.7`, which also satisfies the existing Mockito 5 test engine. Mockito,
+its agent, Objenesis, JUnit, and Spring Test remain test-scoped. H2 `1.4.200`
+and Flyway `3.2.1` stay unchanged.
+
+Spring 5.3 and Hibernate 5.4 both officially list Java 11 compatibility. Java
+25 is outside the published Spring 5.3 and Hibernate 5.4 support matrices and
+is treated as an empirical test target, not as an upstream-supported runtime.
+The existing `javax` Servlet/JPA boundary remains intact; this phase does not
+include Spring 6, Hibernate 6, Jakarta, H2, or Flyway migration.
+
+The source migration is limited to Spring's `hibernate4` imports becoming
+`hibernate5`, Hibernate 5's `NativeQuery` return type in two test doubles,
+focused test-fixture transaction handling, and the SockJS CORS declaration
+using Spring 5.3's origin-pattern API so the existing wildcard-origin policy
+still works with credentials. The `/messages` endpoint and STOMP destinations
+are unchanged. See the [Spring 5.3.39 STOMP endpoint Javadoc](https://docs.spring.io/spring-framework/docs/5.3.39/javadoc-api/org/springframework/web/socket/config/annotation/WebMvcStompWebSocketEndpointRegistration.html)
+for the framework's `allowedOrigins` / `allowedOriginPatterns` constraint.
+Legacy Criteria, `Query`, and
+`createSQLQuery` use remains because Hibernate 5.4 still exposes those
+compatibility APIs; HQL, native SQL, mappings, and production transaction or
+rollback ordering are unchanged. The stricter Hibernate 5 requirement for
+explicit transactions applies to bulk test-fixture DML, so the test helpers
+now commit their setup/cleanup DML explicitly.
 
 Required verification: SessionFactory bootstrap, all DAO tests, HQL/native SQL,
 transaction and rollback tests, entity mapping, and deterministic block/state
-snapshots.
+snapshots. See the Phase 2E results below for build/test counts, dependency
+trees, artifact comparison, database checks, and remaining risks.
+
+#### Phase 2E implementation and verification results
+
+**Phase 2E status: COMPLETE WITH A RECORDED EXISTING-DATABASE LIMITATION.**
+The Spring 5.3 / Hibernate 5.4 coupled change was implemented. The Phase 2D
+`BLOCKED` audit history above remains unchanged.
+
+The runtime dependency tree resolves all Spring Framework artifacts to
+`5.3.39`; no Spring 4 artifact remains. NIS resolves one Hibernate line,
+`hibernate-core:5.4.33.Final`, and one `javax.persistence-api:2.2`; no
+Hibernate 4 core or `hibernate-entitymanager` remains. Javassist is
+`3.27.0-GA`; Hibernate's default Byte Buddy proxy provider requires
+`byte-buddy:1.17.7` in production runtime, replacing Hibernate's older
+`1.11.12` request. The Mockito agent, Objenesis, JUnit, WireMock, and
+`spring-test` are absent from the production runtime tree and copied
+`nis/target/libs`. JAXB 2.3 and activation 1.2 resolve as runtime libraries;
+the transaction API resolves to `jboss-transaction-api_1.2_spec:1.1.1.Final`.
+H2 and Flyway versions are unchanged.
+
+Verification results:
+
+| Check | Result |
+| --- | --- |
+| Java 11 `mvn -B clean package` | PASS with OpenJDK 11.0.32.1. A later repeat hit two public-peer network errors in `NisPeerNetworkHostTest`; the successful full run's Surefire XML totals are listed below. |
+| Java 11 Surefire XML | 624 classes, 6,218 tests, 0 failures, 0 errors, 0 skipped; module totals match Phase 2C |
+| Java 25 clean package and unit suite | All modules compiled; 624 classes and 6,218 tests discovered, 0 failures, 1 error, 0 skipped. `NisPeerNetworkHostTest.isNetworkBootedReturnsTrueIfNetworkIsBooted` failed while contacting public peers (`NoRouteToHost` / connection refused), matching the existing network-dependent baseline category. The lifecycle stopped before packaging. |
+| Java 25 package | `mvn -B -DskipTests package` PASS; this separates packaging from the peer-network test error without suppressing discovery in the reported test result |
+| SessionFactory, DAO, transaction, flush, rollback/fork tests | PASS in the full Java 11 suite and Java 25 suite apart from the peer-network test error; Hibernate 5.4 bootstrapped under both JDKs |
+| Clean H2/Flyway replay | PASS on fresh in-memory H2 1.4.200; unchanged V1.0.0–V1.0.7 all applied (8 migrations), then Spring context and SessionFactory initialized |
+| Existing Testnet DB copy | Read-only Hibernate open and representative HQL reads PASS: schema 1.0.7, 5,000 blocks, max height 5,000, 100 accounts. Full NIS startup stopped at the genesis-hash check. The starting-commit Hibernate 4 application stops at the same check against this copy and reports the same expected genesis hash, so this mismatch predates Phase 2E. Full chain-state comparison against this snapshot is **not verified**. Original and copy SHA-256 hashes were identical before/after. |
+| Java 25 startup without `--add-opens` | PASS on the fresh migrated database: NIS/Deploy started; `/heartbeat`, `/chain/height`, and `/w/messages/info` returned HTTP 200 with JSON responses |
+| Java 25 startup with `--add-opens=java.base/java.lang=ALL-UNNAMED` | PASS on the same smoke setup and endpoints. The existing JVM workaround was not removed from configuration. |
+| Artifact comparison | Same-JDK Java 11 baseline/final JAR names match. Core main/test JAR entries: 352/485 in both; Deploy 31/25; Peer 80/88; NIS main 622. No production class or JAR entry additions/removals. The retained baseline snapshot did not contain an NIS test JAR. NIS copied runtime libraries changed from 71 to 77, replacing Spring 4/Hibernate 4 and their JPA/JAXB/transaction dependencies with the selected versions. Timestamp/raw hash differences are not treated as behavior changes. |
+
+All entity mapping source, migration SQL, H2/Flyway configuration, HQL/native
+SQL text, persistent state format, and production transaction/rollback
+ordering remain unchanged. Hibernate 5's deprecated Criteria, Query, and
+`createSQLQuery` compatibility APIs remain in use to avoid a broad query
+rewrite. Tests now wrap setup/cleanup bulk DML in explicit transactions,
+matching Hibernate 5's required transaction behavior. The Spring 5.3 SockJS
+endpoint uses wildcard origin patterns because wildcard `allowedOrigins` with
+credentials is rejected by Spring 5; smoke tests confirm the endpoint remains
+available. `HandlerInterceptorAdapter` remains as a deprecated but working
+Spring 5.3 API.
+
+Remaining risks: Java 25 is an empirical target outside the published support
+matrices of Spring 5.3 and Hibernate 5.4; both selected lines are end-of-life.
+The Java 25 suite retains one environment-dependent peer-network error. The
+available Testnet database copy can be mapped and read, but its genesis
+identity prevents a full application chain-state comparison. A matching
+Mainnet/Testnet database snapshot is still needed for complete persisted-state
+compatibility evidence.
 
 ### Phase 2F — H2/Flyway database compatibility
 

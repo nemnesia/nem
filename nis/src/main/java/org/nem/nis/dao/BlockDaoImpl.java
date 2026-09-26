@@ -21,7 +21,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({ "rawtypes", "deprecation" })
 public class BlockDaoImpl implements BlockDao {
 	private static final Logger LOGGER = Logger.getLogger(BlockDaoImpl.class.getName());
 

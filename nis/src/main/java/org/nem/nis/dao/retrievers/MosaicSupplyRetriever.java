@@ -13,6 +13,7 @@ import org.nem.nis.dbmodel.*;
 /**
  * Class for for retrieving mosaic supplies.
  */
+@SuppressWarnings("deprecation")
 public class MosaicSupplyRetriever {
 	final private int namespaceLifetime;
 

@@ -1,6 +1,7 @@
 package org.nem.nis.test;
 
 import org.hibernate.Session;
+import org.hibernate.Transaction;
 import org.nem.core.utils.ExceptionUtils;
 import org.nem.nis.cache.*;
 import org.nem.nis.dbmodel.*;
@@ -37,6 +38,10 @@ public class DbTestUtils {
 	 * @param session The session.
 	 */
 	public static void dbCleanup(final Session session) {
+		executeInTransaction(session, () -> cleanupDatabase(session));
+	}
+
+	private static void cleanupDatabase(final Session session) {
 		session.createSQLQuery("delete from multisigsignatures").executeUpdate();
 		session.createSQLQuery("delete from multisigtransactions").executeUpdate();
 		session.createSQLQuery("delete from transferredmosaics").executeUpdate();
@@ -68,6 +73,32 @@ public class DbTestUtils {
 
 		session.flush();
 		session.clear();
+	}
+
+	/**
+	 * Runs database test setup or cleanup in a transaction when the session does not already have one.
+	 *
+	 * @param session The session.
+	 * @param operation The database operation.
+	 */
+	public static void executeInTransaction(final Session session, final Runnable operation) {
+		final Transaction transaction = session.getTransaction();
+		final boolean startedTransaction = !transaction.isActive();
+		if (startedTransaction) {
+			transaction.begin();
+		}
+
+		try {
+			operation.run();
+			if (startedTransaction) {
+				transaction.commit();
+			}
+		} catch (final RuntimeException e) {
+			if (startedTransaction && transaction.isActive()) {
+				transaction.rollback();
+			}
+			throw e;
+		}
 	}
 
 	/**
