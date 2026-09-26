@@ -73,7 +73,14 @@ Other Jetty 12 API adaptation would also be required after that blocker is addre
 
 The environment used for this investigation was Java `17.0.20.1`, `javac 17.0.20.1`, and Maven `3.8.7`. No implementation change was made, so this documentation-only blocker phase did not rerun `mvn clean test`, package, or runtime smoke tests. The latest prior local Java 17 baseline recorded in Phase 2I-A is 624 test classes / 6,218 tests with zero failures, errors, or skips, plus successful package. Those results do not validate Jetty 12.
 
-On the starting HEAD, the prior Phase 2I-C record reports successful Java 17 Baseline run [36235747400](https://github.com/nemnesia/nem/actions/runs/36235747400) and Java 25 Compatibility run [36235747397](https://github.com/nemnesia/nem/actions/runs/36235747397). These are pre-migration results and cannot be treated as Jetty 12 verification. Current-commit workflow runs should be checked after this documentation commit; regardless, Java 17 remains the primary runtime verification target.
+On the starting HEAD, the prior Phase 2I-C record reports successful Java 17 Baseline run [36235747400](https://github.com/nemnesia/nem/actions/runs/36235747400) and Java 25 Compatibility run [36235747397](https://github.com/nemnesia/nem/actions/runs/36235747397). These are pre-migration results and cannot be treated as Jetty 12 verification.
+
+After the Phase 2I-D finding was committed, both workflows also succeeded on documentation-only commit `be3f188979833e6a65ae4708912dfc71c496acda`:
+
+- [Java 17 Baseline run 36237150318](https://github.com/nemnesia/nem/actions/runs/36237150318): clean unit tests and package succeeded.
+- [Java 25 Compatibility run 36237150271](https://github.com/nemnesia/nem/actions/runs/36237150271): clean unit tests and package succeeded.
+
+These runs confirm the unchanged Java baseline workflow remains healthy; they do not test Jetty 12. Java 17 remains the primary runtime verification target.
 
 Jenkins Java 17 execution remains externally blocked and was not validated in this phase. The existing Phase 2I-A/B/C BLOCKED records are retained without alteration. No Jenkins shared-library, image, Jenkinsfile, controller, or agent configuration was changed.
 
