@@ -2,14 +2,14 @@
 
 ## 判定
 
-**COMPLETE** — 標準 `sockjs-client` で Jetty 9 と test-only Jetty 12 EE8 の WebSocket / XHR polling を比較し、既存 XHR fallback の未実装動作を再現しました。`decodeInputStream` を既存の JSON-envelope semantics に合わせる小さな修正と codec 回帰テストを追加しました。修正後は両 runtime で CONNECT、CONNECTED、NIS handler、outbound MESSAGE、UNSUBSCRIBE、DISCONNECT receipt まで確認しました。Java 17 / 25 hosted CI の最終 commit 上の結果は push 後に追記します。
+**PARTIAL** — 標準 client 比較、production codec 修正、回帰テスト、Jetty 9 / Jetty 12 EE8 POC は成立しました。Java 25 hosted CI は成功しましたが、Java 17 hosted clean test は失敗し、GitHub の公開 job log 制限により failing test を特定できませんでした。Java 17 の最終検証が未解決です。
 
 ## Repository と範囲
 
 - Repository: `nemnesia/nem`
 - Branch: `agent/nis-phase0-baseline`
 - Requested / actual starting HEAD: `21f3adb590758d9396d456bac96268f88e34cd2c`
-- Final HEAD: commit 作成後に記録
+- Final code-validation commit: `6a7c2c51651540a09207958e0743d104e0a26f71`; documentation-only CI result update は final report に記載する。
 - Jetty 9: `9.4.58.v20250814`。実 NIS `NisWebAppWebsocketInitializer` を使用。
 - Jetty 12 harness: `12.1.13` EE8、Spring upgrade shim は test-only。
 - Spring Framework: `5.3.39`
@@ -98,10 +98,10 @@ production codec の `decodeInputStream` は、`JSONValue.parse(InputStream)` �
 - 直前の decoder variant での root clean test は Core `AsyncTimerTest.timerContinuesIfFutureSupplierThrows` が1回だけ timing failure、変更なしの再実行は成功し、625 classes / 6,220 tests / 0 failures / 0 errors / 0 skipped でした。最終 parser 実装での full root clean test success とは数えず、上記 public-peer failure と分けて記録します。
 - 最終 parser 実装の targeted `NisWebAppWebsocketInitializerTest`: 2 tests / 0 failures / 0 errors / 0 skipped。
 - Java 25 root `mvn -B -DskipTests package`: 成功。
-- final stream parser に対する targeted `NisWebAppWebsocketInitializerTest`: 2 tests 成功。
 - Java 25 Jetty 9 / Jetty 12 POC: 各 `clean compile exec:java` 成功。
 - `git diff --check`: commit 前に確認。
-- Java 17 Baseline / Java 25 Compatibility hosted CI: push 後に run ID と結果を記録する。
+- Java 17 Baseline run `36274421188`, commit `6a7c2c51651540a09207958e0743d104e0a26f71`: **FAIL**。`Set up Java 17` と version report は成功、`Run clean unit tests` は失敗、`Package modules` は skip。公開 check annotation は `Process completed with exit code 1.` のみ。job logs API は HTTP 403 `Must have admin rights to Repository.` を返したため failing test / root cause を取得できなかった。原因を推測しない。
+- Java 25 Compatibility run `36274421190`, 同一 commit: **SUCCESS**。`Run clean unit tests` と `Package modules` の両方が成功。
 - Jenkins Java 17 execution は従来の external infrastructure blocker のままで、今回は解消も検証もしていない。
 - Phase 2H Failsafe 制約は今回実行・変更していない。
 
@@ -111,4 +111,4 @@ production codec の `decodeInputStream` は、`JSONValue.parse(InputStream)` �
 
 ## 次の判断
 
-この Phase の結果は SockJS codec contract を直したもので、Jetty 12 production migration gate を解除しません。production initializer が Jetty 12 shim を明示的に選択する path、raw handshake headers、Origin rejection、STOMP error mapping、abnormal disconnect、session cleanup、leak behavior は別途確認が必要です。従って Phase 2I-H のみを根拠に production Jetty 12 migration は開始しません。
+この Phase の結果は SockJS codec contract を直したもので、Jetty 12 production migration gate を解除しません。production initializer が Jetty 12 shim を明示的に選択する path、raw handshake headers、Origin rejection、STOMP error mapping、abnormal disconnect、session cleanup、leak behavior は別途確認が必要です。Java 17 hosted clean-test failure の診断と成功 validation が得られるまで Phase 2I-H は `PARTIAL` とし、production Jetty 12 migration は開始しません。
