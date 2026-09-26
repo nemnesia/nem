@@ -84,6 +84,8 @@ Jenkins Java 17 execution remains externally blocked and was not validated in th
 
 The later documentation-only follow-up commit `529e03c621ba5f3df2fc9c0f6116fcb7d85f670e` triggered new runs. Both `Run clean unit tests` steps failed and package steps were skipped: [Java 17 Baseline run 36244248602](https://github.com/nemnesia/nem/actions/runs/36244248602), [Java 25 Compatibility run 36244248540](https://github.com/nemnesia/nem/actions/runs/36244248540). The public API exposes only the failed step result; requesting the job-log archive returned HTTP 403, so the failing test/cause could not be determined. No production or test source changed between the passing implementation commit and this docs-only commit. Treat these final-head CI runs as unresolved failures, not as passing validation or proven regressions.
 
+A subsequent documentation-only follow-up at `97d5fd6f64263ec5deb229ab497766d61f0de313` passed both hosted workflows, including clean tests and package: [Java 17 Baseline run 36244482894](https://github.com/nemnesia/nem/actions/runs/36244482894) and [Java 25 Compatibility run 36244482879](https://github.com/nemnesia/nem/actions/runs/36244482879). This indicates the earlier docs-only run failure was transient or otherwise non-reproducible, but its cause remains unknown because its logs were inaccessible.
+
 The probes can be rerun after installing the current reactor artifacts into a writable local Maven repository:
 
 ```bash
