@@ -101,6 +101,8 @@ Hosted Actions for implementation commit `8c319b5d2869ba5f6d8fe06220ce3c20990125
 - [Java 17 Baseline run 36242299887](https://github.com/nemnesia/nem/actions/runs/36242299887) — Temurin 17; `mvn -B clean test` and `mvn -B -DskipTests package` succeeded.
 - [Java 25 Compatibility run 36242299847](https://github.com/nemnesia/nem/actions/runs/36242299847) — Temurin 25; `mvn -B clean test` and `mvn -B -DskipTests package` succeeded.
 
+The later documentation-only commit `4da57f11406bc86730da343f56e42e9ec517b4d3` had a successful [Java 17 Baseline run 36242593415](https://github.com/nemnesia/nem/actions/runs/36242593415). Its [Java 25 Compatibility run 36242593666](https://github.com/nemnesia/nem/actions/runs/36242593666) failed in `Run clean unit tests`, so package was skipped. The public Actions API did not expose the failure details without repository-admin access; classify this final-head Java 25 result as unresolved. No NIS/POC source changed between the successful Java 25 implementation run and this docs-only commit, but that does not establish the cause of the later failure.
+
 Failsafe was not run. Phase 2H's recorded Failsafe baseline (Core timing case; NIS 9 failures / 21 errors / 2 skipped, including external-peer and legacy H2-file issues) remains unchanged and was not treated as solved here.
 
 ## Existing blockers retained
