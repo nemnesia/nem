@@ -83,7 +83,11 @@ public class NisWebAppWebsocketInitializer extends AbstractWebSocketMessageBroke
 
 	@Override
 	public void registerStompEndpoints(final StompEndpointRegistry registry) {
-		registry.addEndpoint("/messages").setAllowedOriginPatterns("*").withSockJS().setMessageCodec(new AbstractSockJsMessageCodec() {
+		registry.addEndpoint("/messages").setAllowedOriginPatterns("*").withSockJS().setMessageCodec(createSockJsMessageCodec());
+	}
+
+	static AbstractSockJsMessageCodec createSockJsMessageCodec() {
+		return new AbstractSockJsMessageCodec() {
 			@Override
 			public String[] decode(String s) {
 				return new String[]{
@@ -93,13 +97,13 @@ public class NisWebAppWebsocketInitializer extends AbstractWebSocketMessageBroke
 
 			@Override
 			public String[] decodeInputStream(InputStream inputStream) throws IOException {
-				return new String[0];
+				return new String[] { (String) ((JSONArray) JSONValue.parse(inputStream)).get(0) };
 			}
 
 			@Override
 			protected char[] applyJsonQuoting(String s) {
 				return JSONValue.escape(s).toCharArray();
 			}
-		});
+		};
 	}
 }

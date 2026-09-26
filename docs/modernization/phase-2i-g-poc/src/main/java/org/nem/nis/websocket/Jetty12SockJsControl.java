@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -83,18 +84,11 @@ public final class Jetty12SockJsControl {
                     return message;
                 }
             });
-            String base = "http://localhost:" + port + "/messages/000/nis-g-control";
-            HttpResponse<String> open = post(client, base + "/xhr", "", "application/javascript");
-            String connect = "[\"CONNECT\\naccept-version:1.2\\nheart-beat:0,0\\n\\n\\u0000\"]";
-            HttpResponse<String> send = post(client, base + "/xhr_send", connect, "application/json;charset=UTF-8");
-            HttpResponse<String> poll = post(client, base + "/xhr", "", "application/javascript");
-            System.out.println("JETTY12_SOCKJS_CONTROL info=" + info.statusCode() + "; open=" + open.statusCode()
-                    + " body=" + printable(open.body()) + "; xhr_send=" + send.statusCode()
-                    + "; poll=" + poll.statusCode() + " body=" + printable(poll.body())
-                    + "; SpringInboundConnect=" + connects.get());
-            if (info.statusCode() != 200 || open.statusCode() != 200 || send.statusCode() != 204 || poll.statusCode() != 200) {
-                throw new AssertionError("Unexpected HTTP status in Jetty 12 SockJS control");
-            }
+            if (info.statusCode() != 200) throw new AssertionError("SockJS /info status=" + info.statusCode());
+            runSockJsClient(port, "websocket", connects, "Jetty 12 websocket");
+            runSockJsClient(port, "xhr-polling", connects, "Jetty 12 xhr-polling");
+            System.out.println("JETTY12_STANDARD_SOCKJS info=" + info.statusCode() + "; SpringInboundConnectTotal=" + connects.get()
+                    + "; codec=test-only UTF-8 decodeInputStream");
         } finally {
             server.stop();
             server.join();
@@ -102,12 +96,17 @@ public final class Jetty12SockJsControl {
         }
     }
 
-    private static HttpResponse<String> post(HttpClient client, String uri, String body, String contentType) throws Exception {
-        return client.send(HttpRequest.newBuilder(URI.create(uri)).header("Origin", "http://nis-test.invalid")
-                .header("Content-Type", contentType).POST(HttpRequest.BodyPublishers.ofString(body)).build(),
-                HttpResponse.BodyHandlers.ofString());
+    private static void runSockJsClient(int port, String transport, AtomicInteger connects, String label) throws Exception {
+        int before = connects.get();
+        Process process = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-client-probe.js",
+                "http://localhost:" + port + "/messages", transport, "12000", "expect-nis-message").inheritIO().start();
+        if (!process.waitFor(Duration.ofSeconds(20).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
+            process.destroyForcibly();
+            throw new AssertionError("sockjs-client timed out for " + transport);
+        }
+        if (process.exitValue() != 0) throw new AssertionError("sockjs-client failed for " + transport);
+        System.out.println(label + " inboundConnectDelta=" + (connects.get() - before));
     }
-    private static String printable(String body) { return body.replace("\n", "\\n").replace("\r", "\\r"); }
 
     @Configuration
     @ComponentScan("org.nem.nis.websocket")
@@ -118,7 +117,9 @@ public final class Jetty12SockJsControl {
                     .setHandshakeHandler(new DefaultHandshakeHandler(new Jetty12Ee8UpgradeStrategy())).withSockJS()
                     .setMessageCodec(new AbstractSockJsMessageCodec() {
                         @Override public String[] decode(String value) { return new String[] { (String) ((JSONArray) JSONValue.parse(value)).get(0) }; }
-                        @Override public String[] decodeInputStream(java.io.InputStream input) throws IOException { return new String[0]; }
+                        @Override public String[] decodeInputStream(java.io.InputStream input) throws IOException {
+                            return new String[] { (String) ((JSONArray) JSONValue.parse(input)).get(0) };
+                        }
                         @Override protected char[] applyJsonQuoting(String value) { return JSONValue.escape(value).toCharArray(); }
                     });
         }
