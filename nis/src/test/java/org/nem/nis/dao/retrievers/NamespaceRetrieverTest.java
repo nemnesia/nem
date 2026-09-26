@@ -380,7 +380,7 @@ public class NamespaceRetrieverTest {
 		for (int i = 0; i < count; i++) {
 			final PublicKey publicKey = new KeyPair().getPublicKey();
 			final Address address = Address.fromPublicKey(publicKey);
-			final String statement = String.format("Insert into accounts (printableKey, publicKey) values('%s', '%s')", address.toString(),
+			final String statement = String.format("Insert into accounts (printableKey, publicKey) values('%s', X'%s')", address.toString(),
 					publicKey.toString());
 			this.session.createSQLQuery(statement).executeUpdate();
 		}

@@ -21,16 +21,17 @@ public class TestConf {
 	public DataSource dataSource() {
 		final DriverManagerDataSource dataSource = new DriverManagerDataSource();
 		dataSource.setDriverClassName("org.h2.Driver");
-		dataSource.setUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1"); // in-memory only
+		dataSource.setUrl("jdbc:h2:mem:test;MODE=LEGACY;NON_KEYWORDS=VALUE;DB_CLOSE_DELAY=-1"); // in-memory only
 		return dataSource;
 	}
 
 	@Bean(initMethod = "migrate")
 	public Flyway flyway() {
-		final Flyway flyway = new Flyway();
-		flyway.setDataSource(this.dataSource());
-		flyway.setLocations("db/h2");
-		return flyway;
+		return Flyway.configure()
+				.dataSource(this.dataSource())
+				.locations("db/h2")
+				.table("schema_version")
+				.load();
 	}
 
 	@Bean

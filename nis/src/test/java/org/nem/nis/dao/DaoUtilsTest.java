@@ -70,7 +70,7 @@ public class DaoUtilsTest {
 		DbTestUtils.executeInTransaction(this.session, () -> {
 			for (int i = 0; i < count; i++) {
 				final Address address = ACCOUNTS.get(i).getAddress();
-				final String statement = String.format("Insert into accounts (printableKey, publicKey) values('%s', '%s')", address.toString(),
+				final String statement = String.format("Insert into accounts (printableKey, publicKey) values('%s', X'%s')", address.toString(),
 						address.getPublicKey().toString());
 				this.session.createSQLQuery(statement).executeUpdate();
 			}

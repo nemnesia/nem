@@ -413,15 +413,127 @@ complete persisted-state compatibility evidence.
 
 ### Phase 2F — H2/Flyway database compatibility
 
-Treat H2 and Flyway as one database wave unless evidence proves an independent
-move safe. The first target should be selected only after a disposable copy of
-representative data is available. Do not introduce a new schema or state table
-in this wave.
+**Phase 2F status: COMPLETE WITH RECORDED COMPATIBILITY LIMITATIONS.** Starting
+HEAD was `5868cb184fa29f35a6dc36655f1753f4f5984301`; the final commit is this
+Phase 2F verification commit (the exact final SHA is recorded in the final report).
+The Phase 2D `BLOCKED` history and Phase 2E result above are unchanged.
 
-Required verification: migration replay, existing-database open, schema
-metadata, all database tests, rollback/fork behavior, block replay, and
-full-chain comparison. A failed migration or changed persisted meaning stops
-the wave.
+#### Candidate selection
+
+H2 and Flyway were moved together to H2 `2.2.220` and Flyway `9.22.3`. Both
+published artifacts are available from Maven Central and have class-file
+major version 52; the selected ORM remains Hibernate `5.4.33.Final`, the JPA
+namespace remains `javax.persistence` 2.2, and compiler release remains 11.
+H2 `2.3.232` is an upstream Java 11-capable alternative, and Flyway `10.21.0`
+lists H2 `2.3.232` as supported. However, the Flyway 10.21.0 API artifact has
+class-file major version 61 and cannot run on Java 11. Flyway 9.22.3 is the
+last Flyway 9 release and its official release notes cap tested H2 support at
+`2.2.220`; Flyway 10.19/10.21 add newer H2 lines but require Java 17 bytecode.
+The Java 11 baseline therefore takes priority over those newer pairings.
+Both selected lines are old and no longer current upstream maintenance
+targets; this is an explicit support and security risk, not a claim that the
+selected versions are current. References: [H2 migration guide](https://h2database.com/html/migration-to-v2.html),
+[H2 2.2.220 release](https://github.com/h2database/h2database/releases/tag/version-2.2.220),
+[Flyway 9/10 engine release notes](https://documentation.red-gate.com/fd/release-notes-for-flyway-engine-179732572.html),
+[H2 2.2.220 Maven artifact](https://central.sonatype.com/artifact/com.h2database/h2/2.2.220),
+[Flyway 9.22.3 Maven artifact](https://central.sonatype.com/artifact/org.flywaydb/flyway-core/9.22.3).
+
+#### Implementation and SQL compatibility
+
+NIS replaces only the H2/Flyway versions, adds H2 `MODE=LEGACY` and
+`NON_KEYWORDS=VALUE` to both the in-JAR and package-overlay `db.properties`,
+and moves Flyway construction to its fluent configuration API. Flyway is
+explicitly configured to keep using the existing `schema_version` table; its
+production `validateOnMigrate` behavior remains false as before (the existing
+`flyway.validate` property is absent and `Boolean.valueOf(null)` is false).
+The mode settings are required by unchanged V1.0.0–V1.0.7 SQL: normal H2 2.2
+rejects the legacy `transaction_id_seq.nextval` syntax, and `VALUE` is now a
+reserved word while it remains an unquoted entity column. With the two
+settings, all eight migrations replay without editing their SQL. Three H2 2.2
+foreign-key support indexes are generated for `transfers` (`blockId`,
+`senderId`, `recipientId`) in addition to migration-defined indexes. These
+are index-only engine metadata differences; the migration-defined keys and
+data constraints are unchanged. The H2 2.2 JDBC metadata also reports
+`BINARY VARYING` where 1.4 reported `VARBINARY`, and wider metadata precision
+values for `BIGINT`/`INTEGER`; JDBC type codes, declared column lengths,
+nullability, PK/FK columns and referential rules compare equal after
+normalizing those representation differences.
+
+Three test-only raw SQL fixtures now use explicit `X'…'` binary literals for
+hex-encoded public keys. That preserves the old 32-byte value when inserting
+into `VARBINARY(34)`; no production DAO, entity mapping, HQL/native SQL,
+transaction ordering, consensus logic, or block/fork rollback code changed.
+The only production Java change is the Flyway builder/API update. No migration
+SQL, schema definition, H2 version, URL path, or persisted-state format was
+rewritten.
+
+#### Existing database conversion and state comparison
+
+H2's official 1.4→2.0 guide says direct database-file upgrade is not
+supported. The documented migration path is to export with the old H2, create
+a new database with the new H2, and import with `FROM_1X`. That exact procedure
+was run only against a disposable Testnet database copy. The original
+`/home/harvestasya/nem/nis/data/test.mv.db` and Phase 2E copy remained at
+SHA-256 `6e68d1a1c604e2bed0af9c0feb6ac17a6d60991f30d5ac8fc2bc408cf710184e`.
+The converted H2 2.2 file was 173,010,944 bytes; its hash changed from
+`cdde81131c44125655450d786b8aba9fe5a03a1d5eace0e22d8ae88b9b518e64` before
+Flyway's read/no-op migrate to
+`25670fbc87a614a4598ef09cc470643c0943e7b091a92926f6aa868f92e15292` after
+opening it. The file set remained one `.mv.db`; the old copy was 509,284,352
+bytes. The new application does not auto-convert old H2 files: operators must
+use a verified offline export/import on backups before opening them with H2 2.
+
+Old and converted databases have identical per-table row counts and
+SHA-256 digests across every application table and the eight existing
+`schema_version` rows. Representative block hashes/fees/difficulty,
+account keys, transfer hashes/amounts, and the `transaction_id_seq` next value
+also match. The latter is represented as old `CURRENT_VALUE=724979` versus new
+`BASE_VALUE=724980` with increment 1 (same next value). Counts include 5,000
+blocks (max height 5,000), 100 accounts, 475,018 transfers, 24,982 importance
+transfers, 74,993 multisig sends/receives/transactions, and 149,986 multisig
+signatures; namespace and mosaic tables are empty in this snapshot. Hibernate
+5.4 SessionFactory and HQL reads on Java 25 returned height 5,000, 5,000
+blocks, 100 accounts, and 475,018 transfers.
+
+Flyway 9 reads the eight old rows as `SUCCESS`, and with the preserved
+production setting (`validateOnMigrate=false`) its `migrate()` is a no-op at
+1.0.7; all schema-history rows and checksum values remained identical in a logical
+row comparison. A direct Flyway 9 `validate()` does report checksum
+mismatches against Flyway 3's stored checksums. No `repair`, baseline, or
+history rewrite was run. Since production already disabled this validation
+before Phase 2F, startup behavior is preserved, but checksum validation across
+this Flyway generation gap remains unavailable and is a documented risk.
+
+The Testnet copy is still not the current Testnet genesis database. This
+proves file/schema/migration/HQL and stored-row compatibility only; it does
+**not** prove matching-genesis full chain-state, reconstructed balance or
+importance equality. A matching Mainnet/Testnet snapshot is still required
+for that claim.
+
+#### Phase 2F verification results
+
+| Check | Result |
+| --- | --- |
+| Java 11 `mvn -B clean package` | All code compiled; the lifecycle ended with one public-peer timeout in `NisPeerNetworkHostTest`. Full Surefire XML: 624 classes, 6,218 tests, 0 failures, 1 error, 0 skipped. An isolated retry hit the same external peer-network timeout. No H2/Flyway, DAO, transaction or rollback errors occurred. |
+| Java 11 packaging fallback | `mvn -B -DskipTests clean package` PASS. |
+| Java 25 `mvn -B clean package` | All code compiled; one `NisPeerNetworkHostTest` public-peer boot timeout stopped the lifecycle. Surefire XML: 624 classes, 6,218 tests, 0 failures, 1 error, 0 skipped. This matches the known Java 25 network-dependent error category from Phase 2E; no database-stack errors occurred. |
+| Java 25 packaging fallback | `mvn -B -DskipTests clean package` PASS as required after the network-dependent lifecycle error. |
+| Fresh migration replay / SessionFactory | PASS on fresh H2 2.2.220 with Flyway 9.22.3: 8/8 migrations to 1.0.7; NIS/Deploy Spring context, Hibernate SessionFactory, and transaction manager bootstrapped. |
+| DAO/HQL/native SQL/transactions/rollback/fork | All database tests passed in both full-suite runs; all 6,218 tests were discovered. Commit/rollback, flush, read, lazy/eager, cascade, block rollback and fork rollback tests reported no database errors. |
+| Schema metadata | Application columns, types, declared widths, nullability, PK/FK columns, FK rules, sequences, and migration-defined indexes matched after normalizing H2 metadata naming/precision. H2 adds the three generated FK support indexes described above. |
+| Existing Testnet DB copy | Old H2 read/export and H2 2 `FROM_1X` import PASS on disposable copies. Per-table logical row hashes and representative stored values match; Flyway reads 8/8 old history entries and no-op migrate stays at 1.0.7 with production validation disabled. The original and old source copy hashes are unchanged. Full-chain state remains unverified because genesis does not match. |
+| Java 11 startup smoke | PASS on a fresh migrated in-memory database: NIS and Deploy started; `/heartbeat`, `/chain/height`, `/w/messages/info` returned HTTP 200 JSON on their configured listeners. |
+| Java 25 startup smoke | PASS on the same fresh-database path using the existing `--add-opens=java.base/java.lang=ALL-UNNAMED` workaround; all three endpoints returned HTTP 200 JSON. The workaround was not changed. |
+| Dependency graph | NIS runtime resolves one H2 `2.2.220`, one Flyway `9.22.3`, one `javax.persistence-api:2.2`, Hibernate `5.4.33.Final`, Javassist `3.27.0-GA`, JAXB 2.3, activation 1.2 and transaction API `1.1.1.Final`. No H2 1.4/Flyway 3 duplicate, duplicate JPA, or test-only library is in the copied runtime graph. Spring remains uniformly `5.3.39`; no Spring 4 artifact is present. |
+| Artifact comparison | Same-JDK Java 11 build at the Phase 2E start HEAD versus Phase 2F: module JAR names and every JAR entry name/count are unchanged (Core main/test 352/485, Deploy 31/25, Peer 80/88, NIS main 623). No production class additions/removals. NIS copied runtime libraries: 76→81; H2/Flyway old JARs are replaced, with five net new runtime entries from Flyway's transitive Jackson/Gson dependencies. No Mockito, Byte Buddy/agent, Objenesis, JUnit, WireMock or spring-test leaks. Raw JAR hashes are not used as behavior evidence. |
+| Memory observation | Not measured; no profiling or memory tuning was performed in this database compatibility phase. |
+
+Remaining risks are the EOL/maintenance status of the Java 11-compatible
+Flyway line, the unavailable checksum validation across Flyway 3→9, the
+offline H2 file conversion required for existing production databases, the
+three generated FK indexes, the public-peer test error, and the missing
+matching-genesis snapshot. H2/Flyway changes beyond this compatibility wave,
+schema/migration redesign, and all Phase 2G+ work remain out of scope.
 
 ### Phase 2G and later — security-only patches and deferred modernization
 
@@ -433,8 +545,8 @@ line, cache/persistent state, and memory optimization remain later decisions.
 ## Explicitly deferred
 
 - Any production dependency version change in Phase 2A.
-- Spring, H2, Flyway, Mockito, schema, migration, cache, and state changes in
-  this phase.
+- Further H2/Flyway upgrades, schema or migration changes, Mockito changes,
+  cache/state redesign, and Phase 2G+ work after this compatibility wave.
 - Java 11 support removal or changing compiler release from 11.
 - Production Docker migration to Java 25. `nis/Dockerfile` still builds and
   runs on Ubuntu 22.04 with OpenJDK 11 and keeps `MEMORY_MS/MEMORY_MX` at 6G;
@@ -445,16 +557,14 @@ line, cache/persistent state, and memory optimization remain later decisions.
 
 ## NEEDS USER DECISION
 
-1. **Spring/web target family:** retain the `javax`/Java 11-compatible web
-   contract while moving to a supported Spring/Jetty combination, or approve
-   a larger `jakarta`/servlet migration with deployment and API consequences.
-2. **Database upgrade policy:** approve testing H2/Flyway against production
-   database copies and define whether opening existing Mainnet/Testnet files
-   in-place is required. No database target can be selected safely without
-   this evidence.
-3. **Production container:** decide separately whether the production image
+1. **Database rollout procedure:** Phase 2F selected and tested an offline
+   H2 1.4 export / H2 2 import on a disposable Testnet copy. Before production
+   rollout, define backup/maintenance procedures for each network database
+   and obtain a matching-genesis snapshot for full state comparison. Direct
+   in-place H2 file opening is not supported.
+2. **Production container:** decide separately whether the production image
    may move from Java 11 to a Java 25-compatible base after CI validation.
-4. **Security priority:** if an external advisory is shown to apply to an
+3. **Security priority:** if an external advisory is shown to apply to an
    exercised NIS path, decide whether an isolated emergency patch takes
    priority over the ordered modernization waves.
 
