@@ -216,13 +216,14 @@ public class MosaicDefinitionDaoImplTest {
 			Mockito.when(this.sessionFactory.getCurrentSession()).thenReturn(this.session);
 			Mockito.when(this.session.createSQLQuery(Mockito.anyString())).thenReturn(this.sqlQuery);
 			Mockito.when(this.sqlQuery.addScalar(Mockito.any(), Mockito.any())).thenReturn(this.sqlQuery);
+			Mockito.when(this.sqlQuery.setParameter(Mockito.anyString(), Mockito.anyString())).thenReturn(this.sqlQuery);
 			Mockito.when(this.sqlQuery.setParameter(Mockito.any(String.class), Mockito.any(LongType.class))).thenReturn(this.sqlQuery);
 			Mockito.when(this.sqlQuery.uniqueResult()).thenReturn(1L);
 		}
 
 		private void markUnknown(final Address address) {
 			final String encodedAddress = address.getEncoded();
-			Mockito.when(this.sqlQuery.setParameter(Mockito.eq(encodedAddress), Mockito.any(LongType.class))).thenReturn(this.sqlQuery);
+			Mockito.when(this.sqlQuery.setParameter(Mockito.eq(encodedAddress), Mockito.anyString())).thenReturn(this.sqlQuery);
 			Mockito.when(this.sqlQuery.uniqueResult()).thenReturn(null);
 		}
 

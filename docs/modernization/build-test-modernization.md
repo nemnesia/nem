@@ -1,6 +1,6 @@
 # NIS build and test infrastructure modernization
 
-Status: Phase 2B implementation and verification<br>
+Status: Phase 2B and Phase 2C complete<br>
 Audit date: 2026-09-07<br>
 Repository: `nemnesia/nem`<br>
 Branch: `agent/nis-phase0-baseline`<br>
@@ -103,9 +103,9 @@ The following existing wiring was inspected and left unchanged:
 - compiler warning and `-Xlint` policy.
 - test JAR creation, NIS dependency copying, and package layout.
 
-The Java 25 profile and all test-only opens remain in place. The Java 11
-Mockito reflective-access warning remains a known test-harness compatibility
-debt and is intentionally deferred to Phase 2C.
+The Java 25 profile and all test-only opens remain in place. Phase 2C replaces
+the old Mockito reflective-access path and explicitly attaches Mockito to
+test JVMs. Java 11 verification of that configuration remains outstanding.
 
 ## Verification
 
@@ -197,8 +197,8 @@ The following are all **no** for this phase:
 
 ### Deferred
 
-- Phase 2C Mockito/test-harness modernization and subsequent removal testing
-  for test-only opens.
+- Re-test the Mockito harness on Java 11 and remove only test-only opens
+  proven unnecessary on both supported JDKs.
 - Spring/Jetty/servlet runtime alignment, Hibernate/validation review, and
   H2/Flyway compatibility waves from the Phase 2A plan.
 - Maven auxiliary-plugin review, Maven core upgrade, and broader CI matrix
@@ -228,5 +228,138 @@ runtime or production behavior was changed. The conditions are the unpinned
 Maven core/auxiliary-plugin policy, unresolved byte-for-byte reproducibility,
 and the retained environmental integration baseline.
 
-The exact recommended next phase is **Phase 2C — Mockito modernization**.
-Phase 2C was not started by this change.
+Phase 2C — Mockito modernization and Java 11 post-change verification are
+recorded below. No later phase was started.
+
+## Phase 2C — Mockito and test infrastructure modernization
+
+Status: **PHASE 2C COMPLETE**<br>
+Verification date: 2026-09-26 (Java 11 verification follow-up)<br>
+Starting HEAD: `d47846668754464d06f256abc7ca115ac67b670e`<br>
+Mockito before / after: `mockito-all:1.10.19` / `mockito-core:5.22.0`
+
+### Scope and version choice
+
+This was an isolated test-harness wave. Java 11 support and compiler
+`release 11` remain unchanged. No production Java source, runtime dependency,
+Spring, Jetty, Hibernate, H2, Flyway, schema, cache, consensus, networking,
+serialization, Docker, or blockchain state code was changed.
+
+Mockito 5 is the first major line that requires Java 11, so it fits the
+project's minimum supported JDK. The selected `5.22.0` release is from
+2026-02-27 and includes a JDK 25 static-mocking correction. `5.24.0` was
+available by the audit date, but had been released only three days earlier;
+this repository has no static or constructor mocking that needs a later API.
+The selection avoids a just-released update without a demonstrated need. The
+Mockito 5 Java baseline is documented in its [release notes](https://github.com/mockito/mockito/wiki/Draft-Mockito-5-release-notes),
+and the relevant 5.22 and 5.24 dates and change lists are in the [official release history](https://github.com/mockito/mockito/releases).
+
+Mockito 5 uses the inline mock maker by default. On JDK 21 and later, Mockito
+warns that relying on dynamic self-attachment may stop working. The four
+module POMs now resolve the test-scope Mockito JAR path and pass it as a
+`-javaagent` to Surefire; Core, Peer, and NIS also pass it to Failsafe. The
+existing JaCoCo agent and Java 25 test-only `--add-opens` are retained. This
+follows Mockito's [documented Maven setup](https://javadoc.io/doc/org.mockito/mockito-core/5.22.0/org.mockito/org/mockito/Mockito.html#0.3).
+The Java 25 run no longer emits Mockito self-attachment warnings or
+MockMaker initialization errors. The JVM does emit its class-data-sharing
+warning because an agent appends to the bootstrap class path.
+
+### Dependency and API audit
+
+All four modules replaced test-scope `org.mockito:mockito-all:1.10.19` with
+`org.mockito:mockito-core:5.22.0`. JUnit `4.13.2`, WireMock `1.58`
+standalone, MTJ `1.0.4`, and other test dependencies were left unchanged.
+There is no `mockito-inline`, PowerMock, or Mockito-specific JUnit runner,
+rule, or extension in the repository. Existing JUnit runners are
+`Enclosed`, `Parameterized`, and Spring's `SpringJUnit4ClassRunner`.
+
+The API scan found 237 Java files with Mockito references, 30 files using
+`ArgumentCaptor`, and 11 files using spies. Tests use the classic mock, stub,
+verify, spy, and captor APIs. No static or constructor mocking, Mockito
+internal API, `MockitoAnnotations.initMocks`, or `org.mockito.Matchers` use
+was found. Mockito 5's inline mock maker now supports final classes by
+default; no test required a special opt-in.
+
+The following test-only API/behavior updates were needed:
+
+- `anyCollectionOf(Node.class)` became the type-inferred `any()` matcher.
+- Two `anyObject()` calls became `any()`; one `verifyZeroInteractions()` call
+  became `verifyNoInteractions()`.
+- The namespace and mosaic DAO mock setups now stub the actual
+  `setParameter(String, String)` overload used by production code. The old
+  stubs targeted a `LongType` overload and only passed under the old bundled
+  Mockito behavior.
+- The websocket test now uses a typed `isNull()` matcher for an invocation
+  that deliberately passes `null`. Mockito 2+ `any(Class)` excludes null,
+  while the old Mockito 1 matcher accepted it.
+
+No assertion, expected value, test case, skip, or timeout was changed. The
+dependency tree now brings test-scope Byte Buddy `1.17.7`, Byte Buddy Agent
+`1.17.7`, and Objenesis `3.3`; these had previously been bundled inside
+`mockito-all`. JUnit remains `4.13.2`. Mockito bytecode is Java 11 class
+version 55; Byte Buddy is class version 49 and Objenesis is class version 52.
+Their class-file levels are compatible with Java 11; the direct Java 11 run
+below also validates the Mockito stack on that runtime.
+
+### Test and artifact results
+
+Both the pre-change baseline and the post-change run used OpenJDK `25.0.4.1`,
+Maven `3.8.7`, and the same four-module unit-test reactor. Counts are from
+Surefire XML reports, not the Maven exit code. `maven.test.failure.ignore`
+was enabled only so the reactor would finish and write reports for every
+module.
+
+| Module | Test reports | Before tests / failures / errors / skipped | After tests / failures / errors / skipped |
+| --- | ---: | ---: | ---: |
+| Core | 218 | 2361 / 0 / 16 / 0 | 2361 / 0 / 16 / 0 |
+| Deploy | 9 | 65 / 0 / 0 / 0 | 65 / 0 / 0 / 0 |
+| Peer | 45 | 306 / 0 / 0 / 0 | 306 / 0 / 0 / 0 |
+| NIS | 352 | 3486 / 2 / 8 / 0 | 3486 / 2 / 8 / 0 |
+| **Total** | **624** | **6218 / 2 / 24 / 0** | **6218 / 2 / 24 / 0** |
+
+Test class report count, test case count, failures, errors, and skips are
+identical before and after. Core's 16 errors are WireMock tests whose socket
+creation is denied by this sandbox. NIS retains the same two network-boot
+failures and eight errors: seven from public-peer boot and one DNS lookup for
+`bob.nem.ninja`. No Mockito initialization, attach, or API-related failure
+remains. The updated Namespace DAO, Mosaic Definition DAO, and Messaging
+Service test classes were also run directly: 64 tests, no failures/errors.
+
+Java 25 `clean package -DskipTests` passed after the change, compiling the
+production and test sources with `release 11`. The Java 25 unit run completed
+with the same test report totals and environmental failures as the
+pre-change run.
+
+The post-change Java 11 verification used OpenJDK `11.0.32.1` and Maven
+`3.8.7`. `mvn clean package -Dmaven.test.failure.ignore=true` completed for
+all five reactor projects, compiling production and test sources with
+`release 11` and packaging the Core, Deploy, Peer, and NIS artifacts. Surefire
+reported 624 test classes and 6,218 test cases: 0 failures, 0 errors, and 0
+skips. The class and case counts match the Java 25 post-change run and the
+pre-change baseline. The known external-peer and DNS failures did not occur
+in this Java 11 run; no Mockito-related warning or error required a new JVM
+option.
+
+For an exact artifact comparison, the pre-change commit and current tree were
+both packaged under Java 25. Artifact names, entry names, and entry counts
+match: Core main/test `348/484`, Deploy `31/25`, Peer `80/88`, and NIS main
+`620`; the NIS test JAR remains unproduced. All production JAR entry
+contents are identical, and NIS still copies the same 71 runtime library
+filenames. The only changed entry in a packaged test JAR is
+`CommonStarterTest.class`, whose bytecode now calls Mockito 5's varargs
+`doThrow(Throwable...)` signature; its test source and assertions are
+unchanged. Mockito, Byte Buddy, Byte Buddy Agent, Objenesis, JUnit, and
+WireMock are absent from the runtime dependency tree. No production
+dependency changed.
+
+### Phase 2C gate and next work
+
+The JDK 25 harness introduced no test-count change or Mockito-specific
+failure/error relative to its same-environment baseline. The Java 11
+clean-package and unit-test run also passed with unchanged test discovery and
+zero failures, errors, or skips. Production sources and dependencies were
+unchanged, and the artifact comparison showed no unintended module, filename,
+packaging, or runtime-library changes. Phase 2C is **COMPLETE**.
+
+Phase 2D web/runtime framework alignment was not started. Spring, Jetty,
+Hibernate, H2, and Flyway remain deferred.

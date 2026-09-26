@@ -265,6 +265,12 @@ Required verification: all unit tests on Java 11 and 25, integration report
 classification against the Phase 0 baseline, test-only JVM arguments, and no
 production dependency tree change.
 
+Phase 2C was implemented and completed with Mockito Core 5.22.0. Java 11
+post-change clean package and unit tests passed with 6,218 tests and no
+failures/errors/skips. Java 25 discovery matched the pre-change baseline;
+environmental network/socket failures were unchanged. Details are recorded in
+`build-test-modernization.md`.
+
 ### Phase 2D — web/runtime framework alignment
 
 Choose one compatible Spring/Jetty/servlet family for NIS and deploy. The
@@ -341,4 +347,5 @@ The first low-coupling build/test wave was implemented separately and is
 documented in `build-test-modernization.md`. Runtime framework and database
 implementation waves remain conditional on the Java 11/web target decision,
 representative database copies, and full consensus/state regression
-verification. Phase 2C has not been implemented.
+verification. Phase 2C's Mockito/test-harness implementation and verification
+are recorded in `build-test-modernization.md`.
