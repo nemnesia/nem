@@ -16,13 +16,13 @@ The main folders are:
 
 ## Building the package
 
-The package uses [Apache Maven](https://maven.apache.org/) and  minimum required Java SDK version to build is **Java 11**.
+The package uses [Apache Maven](https://maven.apache.org/) and the minimum required Java SDK version to build is **Java 17**.
 
-Please make sure that the Java version is 11+ by running the following command:
+Please make sure that the Java version is 17 or newer by running the following command:
 
 ```bash
 java -version
-# should print sth similar to: openjdk version "11.0.2" 2019-01-15
+# should print a Java 17 or newer version
 ```
 
 Build the package as usual:
