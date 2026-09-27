@@ -2,7 +2,7 @@
 
 ## Status
 
-**PARTIAL — Central-only resolution is verified locally; hosted CI could not be inspected in this environment.**
+**COMPLETE — Central-only resolution is verified locally and hosted Java 17 / Java 25 CI passed.**
 
 No production Java code, dependency version, runtime behavior, protocol, schema, or migration SQL changed. The Phase 2F Mainnet / Testnet real-database compatibility gate remains BLOCKED pending provenance-verified database artifacts.
 
@@ -87,7 +87,14 @@ The NIS dependency tree was captured before the POM cleanup and after it using t
 
 ## Hosted CI
 
-Hosted Java 17 and Java 25 run results could not be verified. The local GitHub CLI has an invalid stored credential, and its API request also failed to connect. No credential was generated or changed, and no workflow was modified. Hosted CI status therefore remains unverified; local builds are not substituted for hosted results.
+The local GitHub CLI has an invalid stored credential, so authenticated `gh` inspection was unavailable. Public Actions run metadata was readable after push. Both workflows completed successfully for commit `311f02c920bc929c11b61e941bd5d6c10315c8ca`:
+
+| Workflow | Run ID | Result |
+|---|---:|---|
+| Java 17 Baseline | [36320970656](https://github.com/nemnesia/nem/actions/runs/36320970656) | Success; clean unit tests and package steps passed |
+| Java 25 Compatibility | [36320970643](https://github.com/nemnesia/nem/actions/runs/36320970643) | Success; clean unit tests and package steps passed |
+
+No credential was generated or changed, and no workflow was modified. A documentation-only follow-up commit records these results; final-HEAD CI is checked separately in the task report.
 
 ## Scope and remaining gates
 
