@@ -25,7 +25,7 @@ Branch: `agent/nis-phase0-baseline`
 Requested / actual starting HEAD: `f56f52339f1fcdb9c46b0de28c1b8cf1db09ef17`
 
 JDK: OpenJDK `17.0.20.1` / `25.0.4.1`; Maven `3.8.7`; Linux amd64
-Final HEAD: この記録を含む commit SHA を Git 最終報告に記載する。
+Final HEAD for measurement code: `6000dc22ad148e8d99091be92c32d2703cf09172`. A follow-up documentation commit records these hosted results; its SHA is the repository final HEAD reported separately.
 
 ## 変更範囲と実行経路
 
@@ -90,7 +90,8 @@ WebSocket / XHR polling の両方で invalid command、SEND destination 欠落�
 - Java 17 local package: `mvn -B -DskipTests package` 成功。
 - Java 25 local: `mvn -B clean test` も `NisPeerNetworkHostTest.defaultHostCanBeBootedAsync` 1 error (`Connection refused`) で終了。集計 `625 classes / 6,220 tests; failures=0, errors=1, skipped=0`。Jetty関連の失敗はなかった。`mvn -B -DskipTests package` は成功。
 - Test-only Jetty 9/Jetty 12 control harness は Java 17 上で runtime probe を実行し、両方の Spring startup/transport probeを利用した。normal-only 各100-cycle rerun は双方で成功し、終了10秒後に session map と current HttpPoll がゼロになった。
-- Hosted Java 17 Baseline / Java 25 Compatibility run IDs and current commit result: pending push/Actions lookup; final status will be appended after lookup. Java 25 cannot replace Java 17 gate.
+- Hosted [Java 17 Baseline run `36281614095`](https://github.com/nemnesia/nem/actions/runs/36281614095), commit `6000dc22ad148e8d99091be92c32d2703cf09172`: Temurin `17.0.20.1`, Maven workflow test step failed in `mvn -B clean test`; `NisPeerNetworkHostTest.defaultHostCanBeBootedAsync` had 1 error (`network boot failed`) after public peers returned `Connection refused` / timeout, including `hachi.nem.ninja:7890`. `package modules` was skipped. This matches the local public-peer limitation; no Jetty-related test failure was reported.
+- Hosted [Java 25 Compatibility run `36281614035`](https://github.com/nemnesia/nem/actions/runs/36281614035), same commit: Java 25 `clean test` and package steps succeeded. It is supplementary and does not replace the Java 17 result.
 - Jenkins Java 17 execution remains externally blocked by the image/shared-library limitation previously documented; this Phase does not alter it.
 
 ## 維持する独立 blocker
