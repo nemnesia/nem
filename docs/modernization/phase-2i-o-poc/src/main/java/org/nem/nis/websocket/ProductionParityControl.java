@@ -18,6 +18,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.ServletRegistration;
+import javax.servlet.http.HttpServletMapping;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.websocket.Endpoint;
@@ -223,9 +224,10 @@ public final class ProductionParityControl {
                 throws IOException, ServletException {
             HttpServletRequest http = (HttpServletRequest) request;
             record("request-enter method=" + http.getMethod() + " uri=" + http.getRequestURI()
+                    + " query=" + http.getQueryString() + " dispatcher=" + http.getDispatcherType()
                     + " contextPath=" + http.getContextPath() + " servletPath=" + http.getServletPath()
                     + " pathInfo=" + http.getPathInfo() + " asyncSupported=" + request.isAsyncSupported()
-                    + " asyncStarted=" + request.isAsyncStarted());
+                    + " asyncStarted=" + request.isAsyncStarted() + " mapping=" + servletMapping(http));
             try {
                 chain.doFilter(request, response);
                 record("request-exit uri=" + http.getRequestURI() + " status=" + ((HttpServletResponse) response).getStatus()
@@ -240,6 +242,14 @@ public final class ProductionParityControl {
             }
         }
         @Override public void destroy() { }
+    }
+
+    private static String servletMapping(HttpServletRequest request) {
+        HttpServletMapping mapping = request.getHttpServletMapping();
+        var registration = request.getServletContext().getServletRegistration(mapping.getServletName());
+        return "name=" + mapping.getServletName() + ",pattern=" + mapping.getPattern() + ",match="
+                + mapping.getMatchValue() + ",kind=" + mapping.getMappingMatch() + ",class="
+                + (registration == null ? "<unknown>" : registration.getClassName());
     }
 
     @Configuration

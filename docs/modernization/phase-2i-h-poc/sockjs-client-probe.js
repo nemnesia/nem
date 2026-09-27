@@ -13,6 +13,8 @@ let stompSessionReady = false;
 let normalDisconnectSent = false;
 let malformedFrameSent = false;
 let selectedTransport = null;
+let transportUrl = null;
+let handshakeStatusCode = null;
 let errorProbeFinished = false;
 const sock = new SockJS(endpoint, null, {
   transports: [transport],
@@ -32,6 +34,10 @@ function finish(reason) {
     console.log(JSON.stringify({
       requestedTransport: transport,
       selectedTransport,
+      initialSockJsUrl: endpoint,
+      infoUrl: endpoint.replace(/\/$/, '') + '/info',
+      actualTransportUrl: transportUrl,
+      handshakeStatusCode,
       readyState: sock.readyState,
       protocol: sock.protocol,
       events,
@@ -53,6 +59,8 @@ function finish(reason) {
 sock.onopen = () => {
   events.push({ type: 'open' });
   selectedTransport = sock._transport && sock._transport.transportName || null;
+  transportUrl = sock._transport && sock._transport.url || null;
+  handshakeStatusCode = sock._transport && sock._transport.ws && sock._transport.ws.statusCode || null;
   console.log('SOCKJS_OPEN ' + selectedTransport);
   sock.send('CONNECT\naccept-version:1.2\nheart-beat:0,0\n\n\u0000');
 };
