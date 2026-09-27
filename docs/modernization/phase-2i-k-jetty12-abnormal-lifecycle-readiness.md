@@ -4,7 +4,7 @@
 
 **PARTIAL — production Jetty 12 migration は開始しない。**
 
-SockJS XHR の残留は Jetty 9 / Jetty 12 共通で、恒久 session leak ではなく、HTTP async poll が SockJS heartbeat で切断を検知するまで保持され、その後 Spring の disconnect cleanup が回収する挙動と特定できた。両 Jetty で100件×3 batchを実行し、各回約35秒でsession mapが0になった。QTP workerは実行ごとのhost負荷で変動し、idle状態でも60秒後にベースラインまで縮退しなかったため、resource-retentionの説明をreadiness条件として残す。Malformed STOMPの代表caseでは両 transport / runtimeで20秒間ERROR/closeがなく接続維持だった。Java 17 clean test/package、Java 25 retry clean test/package は成功したが、Java 25 初回test failureとhosted CI結果が残るため判定はPARTIAL。
+SockJS XHR の残留は Jetty 9 / Jetty 12 共通で、恒久 session leak ではなく、HTTP async poll が SockJS heartbeat で切断を検知するまで保持され、その後 Spring の disconnect cleanup が回収する挙動と特定できた。両 Jetty で100件×3 batchを実行し、各回約35秒でsession mapが0になった。QTP workerは実行ごとのhost負荷で変動し、idle状態でも60秒後にベースラインまで縮退しなかったため、resource-retentionの説明をreadiness条件として残す。Malformed STOMPの代表caseでは両 transport / runtimeで20秒間ERROR/closeがなく接続維持だった。Java 17/25 のローカル clean test/package および同一commitの hosted CI は成功した。Jetty QTP の余剰 workerがidle timeout後も残る理由、batch間のthread増加の意味が確定していないため判定はPARTIAL。
 
 ## 対象と開始状態
 
@@ -79,7 +79,12 @@ The client harness uses a 20-second observation window and reports selected tran
 
 `NisPeerNetworkHostTest.createNetwork()` used a real `HttpConnectorPool`. Boot triggered `PeerNetwork.boot()` and `LocalNodeEndpointUpdater.updateAny()`, which sent `getLocalNodeInfo` to seed peers from `peers-config_mainnet.json`. This made a unit test and its neighboring host boot tests depend on DNS/public peer availability.
 
-The test-only default host helper now uses mocked peer/time-sync connectors. `getLocalNodeInfo` asynchronously returns the same supplied local endpoint after a 25 ms delay, preserving successful auto-IP discovery and the pending-future observation in `defaultHostCanBeBootedAsync`; no public network request is made. Tests supplying explicit connector pools retain their own behavior. The complete `NisPeerNetworkHostTest` class targeted run passed. Java 17 `mvn -B clean test` and `mvn -B clean package` passed. Java 25 first clean test had one timing failure in `AsyncTimerTest.visitorIsNotifiedOfSuccessfulCompletions` (2361 tests, 1 failure); an immediate full clean test retry passed, and a subsequent `mvn -B clean package` passed. The first failure occurred while the probe suite was concurrently loading the host, so scheduling contention is plausible but not proven. Current package reports 625 classes / 6,220 tests (0 failures/errors/skips), two more tests than the recorded 2H discovery baseline (624 / 6,218); no source test class/method was added in this phase, and exact source of that historical count difference was not established.
+The test-only default host helper now uses mocked peer/time-sync connectors. `getLocalNodeInfo` asynchronously returns the same supplied local endpoint after a 25 ms delay, preserving successful auto-IP discovery and the pending-future observation in `defaultHostCanBeBootedAsync`; no public network request is made. Tests supplying explicit connector pools retain their own behavior. The complete `NisPeerNetworkHostTest` class targeted run passed. Java 17 `mvn -B clean test` and `mvn -B clean package` passed. Java 25 first clean test had one timing failure in `AsyncTimerTest.visitorIsNotifiedOfSuccessfulCompletions` (2361 tests, 1 failure); an immediate full clean test retry passed, and a subsequent `mvn -B clean package` passed. The first failure occurred while the probe suite was concurrently loading the host, so scheduling contention is plausible but not proven. The final Java 17 Baseline and Java 25 Compatibility workflows both passed clean test and package on commit `c3027972c712ecdaaa811a46df92d88415561990`. Local successful package reports 625 classes / 6,220 tests (0 failures/errors/skips), two more tests than the recorded 2H discovery baseline (624 / 6,218); no source test class/method was added in this phase, and exact source of that historical count difference was not established.
+
+Hosted workflow evidence:
+
+- Java 17 Baseline run [`36284615185`](https://github.com/nemnesia/nem/actions/runs/36284615185), commit `c3027972c712ecdaaa811a46df92d88415561990`: `Run clean unit tests` and `Package modules` succeeded.
+- Java 25 Compatibility run [`36284615182`](https://github.com/nemnesia/nem/actions/runs/36284615182), same commit: `Run clean unit tests` and `Package modules` succeeded. This is compatibility evidence only, not a Java 17 substitute.
 
 ## Existing independent gates
 
@@ -95,6 +100,6 @@ Production code changes: none. The NIS unit-test fixture is deterministic; the J
 
 1. Resolve or further characterize QTP worker retention after 60 seconds idle; thread counts are idle-dominated and noisy, but did not shrink to baseline during the observation window.
 2. Run the Jetty 12 one-session retention sample and, if readiness claims depend on it, extend post-idle/repeated-batch observation beyond the measured window.
-3. Capture hosted Java 17 Baseline and Java 25 Compatibility results on the final commit. Java 25 cannot substitute for Java 17.
+3. Clarify why Jetty 9/12 QTP retains excess idle workers beyond the configured `idleTimeout`, and determine whether the 34→54→58 Jetty 12 batch counts reflect normal pool growth or a lifecycle retention issue. Repeat hosted Java 17/25 workflows after this documentation-only follow-up commit; Java 25 cannot substitute for Java 17.
 
 Until these are complete and all parity results are reviewed, Jetty 12 production migration must remain gated.
