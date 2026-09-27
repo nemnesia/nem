@@ -2,7 +2,7 @@
 
 ## Status
 
-**COMPLETE — WireMock 1.58 was replaced with stable WireMock 3.x and the HTTP test contract passed on Java 17 and Java 25.**
+**PARTIAL — WireMock 1.58 was replaced with stable WireMock 3.x and local Java 17 / 25 verification passed; hosted Java 17 remains unresolved.**
 
 This is a test-only modernization. Production Java code, production dependencies, protocol behavior, persistence, and runtime configuration are unchanged. Phase 2F Mainnet / Testnet real-database compatibility remains BLOCKED pending provenance-verified database artifacts.
 
@@ -85,7 +85,14 @@ The implementation commit `b60092bc94ae3baefd7405848c4cc161a8dcadea` triggered b
 | Java 17 Baseline | [36348856960](https://github.com/nemnesia/nem/actions/runs/36348856960) | **FAIL** | `Run clean unit tests` exited 1; package step skipped. Public check annotations only report `Process completed with exit code 1`. The Actions job-log API returned HTTP 403 (`Must have admin rights to Repository`), so the failing test and cause could not be determined. |
 | Java 25 Compatibility | [36348856953](https://github.com/nemnesia/nem/actions/runs/36348856953) | **PASS** | Workflow completed successfully. |
 
-The Java 17 failure is unresolved and is not attributed to WireMock based on the available evidence: all Java 17 local full-suite tests and package passed, while the hosted log needed to identify the failing test is inaccessible. A push of this documentation-only follow-up triggers a fresh pair of checks on the final HEAD; those run IDs and results are reported in the task result. Until the final Java 17 hosted run succeeds or its failure is diagnosed and corrected, the hosted-CI acceptance criterion remains open.
+The documentation commit `3282945d5b99fd041f3c0985a81be9f6bb86da74` triggered another pair of checks:
+
+| Workflow | Run | Result | Details |
+|---|---:|---|---|
+| Java 17 Baseline | [36349091858](https://github.com/nemnesia/nem/actions/runs/36349091858) | **FAIL** | `Run clean unit tests` exited 1; package step skipped. The check annotation again only reports exit code 1 and job-log access returned HTTP 403. |
+| Java 25 Compatibility | [36349091861](https://github.com/nemnesia/nem/actions/runs/36349091861) | **PASS** | Workflow completed successfully. |
+
+The Java 17 failure is unresolved and is not attributed to WireMock based on the available evidence: all Java 17 local full-suite tests and package passed, while both hosted job logs needed to identify the failing test are inaccessible. This leaves the hosted-CI acceptance criterion open and the phase **PARTIAL** pending an authorized log review or a successful hosted Java 17 run.
 
 ## Remaining limitations
 
