@@ -2,10 +2,13 @@ package org.nem.deploy.server;
 
 import javax.servlet.ServletContextListener;
 import org.eclipse.jetty.server.*;
-import org.eclipse.jetty.server.handler.HandlerCollection;
-import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee8.annotations.AnnotationConfiguration;
+import org.eclipse.jetty.ee8.plus.webapp.EnvConfiguration;
+import org.eclipse.jetty.ee8.plus.webapp.PlusConfiguration;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.thread.*;
-import org.eclipse.jetty.webapp.Configuration;
+import org.eclipse.jetty.ee8.webapp.Configurations;
 import org.nem.deploy.*;
 import org.springframework.web.context.ContextLoaderListener;
 
@@ -63,29 +66,52 @@ public abstract class AbstractServerBootstrapper {
 		server.addBean(new ScheduledExecutorScheduler());
 
 		if (this.configuration.isNcc()) {
-			final Configuration.ClassList classList = Configuration.ClassList.setServerDefault(server);
-			classList.addAfter("org.eclipse.jetty.webapp.FragmentConfiguration", "org.eclipse.jetty.plus.webapp.EnvConfiguration",
-					"org.eclipse.jetty.plus.webapp.PlusConfiguration");
-			classList.addBefore("org.eclipse.jetty.webapp.JettyWebXmlConfiguration",
-					"org.eclipse.jetty.annotations.AnnotationConfiguration");
+			final Configurations configurations = Configurations.setServerDefault(server);
+			final int fragmentIndex = configurationIndex(configurations, org.eclipse.jetty.ee8.webapp.FragmentConfiguration.class);
+			if (fragmentIndex >= 0) {
+				configurations.add(fragmentIndex + 1, new EnvConfiguration());
+				configurations.add(fragmentIndex + 2, new PlusConfiguration());
+			}
+			final int jettyXmlIndex = configurationIndex(configurations, org.eclipse.jetty.ee8.webapp.JettyWebXmlConfiguration.class);
+			if (jettyXmlIndex >= 0) {
+				configurations.add(jettyXmlIndex, new AnnotationConfiguration());
+			}
 		}
 
 		return server;
 	}
 
+	private static int configurationIndex(final Configurations configurations, final Class<?> type) {
+		for (int i = 0; i < configurations.size(); ++i) {
+			if (type.isInstance(configurations.get(i))) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	@SuppressWarnings("removal")
 	private Handler createHandlers() {
 		final ServletContextHandler servletContext = new ServletContextHandler();
+		this.configureServletContextHandler(servletContext);
 
 		// Special Listener to set-up the environment for Spring
 		servletContext.addEventListener(this.getCustomServletListener());
 		servletContext.addEventListener(new ContextLoaderListener());
 		servletContext.setErrorHandler(new JsonErrorHandler(CommonStarter.TIME_PROVIDER));
 
-		final HandlerCollection handlers = new HandlerCollection();
-		handlers.setHandlers(new org.eclipse.jetty.server.Handler[]{
-				servletContext
-		});
-		return handlers;
+		final GzipHandler gzipHandler = new GzipHandler();
+		gzipHandler.setIncludedMimeTypes(org.eclipse.jetty.http.MimeTypes.Type.APPLICATION_JSON.asString());
+		gzipHandler.setHandler(servletContext);
+		return gzipHandler;
+	}
+
+	/**
+	 * Allows server variants to configure container initializers before listeners run.
+	 *
+	 * @param servletContext The servlet context handler.
+	 */
+	protected void configureServletContextHandler(final ServletContextHandler servletContext) {
 	}
 
 	/**

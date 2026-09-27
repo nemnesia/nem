@@ -25,7 +25,7 @@
     <properties>
         <nemCodeBase>http://bob.nem.ninja/</nemCodeBase>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jetty.version>9.4.58.v20250814</jetty.version>
+        <jetty.version>12.1.13</jetty.version>
         <spring.version>5.3.39</spring.version>
         <hibernate.version>5.4.33.Final</hibernate.version>
     </properties>
@@ -72,12 +72,6 @@
 
         <!-- various -->
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <version>4.0.1</version>
-        </dependency>
-
-        <dependency>
             <groupId>net.minidev</groupId>
             <artifactId>json-smart</artifactId>
             <version>2.6.0</version>
@@ -104,38 +98,8 @@
 
         <!-- jetty -->
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-annotations</artifactId>
-            <version>${jetty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-client</artifactId>
-            <version>${jetty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-plus</artifactId>
-            <version>${jetty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-server</artifactId>
-            <version>${jetty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-servlet</artifactId>
-            <version>${jetty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-servlets</artifactId>
-            <version>${jetty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.websocket</groupId>
-            <artifactId>websocket-server</artifactId>
+            <groupId>org.eclipse.jetty.ee8.websocket</groupId>
+            <artifactId>jetty-ee8-websocket-javax-server</artifactId>
             <version>${jetty.version}</version>
         </dependency>
 

@@ -7,9 +7,8 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.*;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.util.MultiException;
 import org.nem.core.metadata.*;
 import org.nem.core.time.*;
 import org.nem.core.utils.*;
@@ -98,10 +97,8 @@ public class CommonStarter {
 	private void startServer(final Server server, final URL stopURL) throws Exception {
 		try {
 			server.start();
-		} catch (final MultiException e) {
-			final long bindExceptions = e.getThrowables().stream().filter(t -> t instanceof BindException).count();
-
-			if (bindExceptions > 0) {
+		} catch (final Exception e) {
+			if (hasCause(e, BindException.class)) {
 				LOGGER.log(Level.WARNING, "Port already used, trying to shutdown other instance");
 				// We assume it is already running?
 				// Kill the old one
@@ -116,6 +113,15 @@ public class CommonStarter {
 			}
 		}
 		LOGGER.info(String.format("%s is ready to serve. URL is \"%s\".", CommonStarter.META_DATA.getAppName(), server.getURI()));
+	}
+
+	private static boolean hasCause(final Throwable error, final Class<? extends Throwable> type) {
+		for (Throwable cause = error; null != cause; cause = cause.getCause()) {
+			if (type.isInstance(cause)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

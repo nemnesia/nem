@@ -1,11 +1,12 @@
 package org.nem.deploy;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import javax.servlet.http.*;
 import org.eclipse.jetty.http.*;
-import org.eclipse.jetty.server.*;
-import org.eclipse.jetty.server.handler.ErrorHandler;
-import org.eclipse.jetty.util.ByteArrayISO8859Writer;
+import org.eclipse.jetty.ee8.nested.ErrorHandler;
+import org.eclipse.jetty.ee8.nested.Request;
+import org.eclipse.jetty.ee8.nested.Response;
 import org.nem.core.connect.ErrorResponse;
 import org.nem.core.serialization.JsonSerializer;
 import org.nem.core.time.TimeProvider;
@@ -29,7 +30,7 @@ public class JsonErrorHandler extends ErrorHandler {
 
 	@Override
 	public void handle(final String target, final Request baseRequest, final HttpServletRequest request, final HttpServletResponse response)
-			throws IOException {
+			throws IOException, javax.servlet.ServletException {
 		// note: handle needs to be overridden instead of something more specific like handleErrorPage
 		// because we need to set the content type to application/json and this is the only way to do that.
 		// the rest of the implementation comes from the reflected base class.
@@ -46,13 +47,12 @@ public class JsonErrorHandler extends ErrorHandler {
 			response.setHeader(HttpHeader.CACHE_CONTROL.asString(), this.getCacheControl());
 		}
 
-		try (final ByteArrayISO8859Writer writer = new ByteArrayISO8859Writer(4096)) {
-			final String reason = (response instanceof Response) ? ((Response) response).getReason() : null;
-			this.handleErrorPage(request, writer, response.getStatus(), reason);
-			writer.flush();
-			response.setContentLength(writer.size());
-			writer.writeTo(response.getOutputStream());
-		}
+		final StringWriter writer = new StringWriter(4096);
+		final String reason = (response instanceof Response) ? ((Response) response).getReason() : null;
+		this.handleErrorPage(request, writer, response.getStatus(), reason);
+		final byte[] content = writer.toString().getBytes(StandardCharsets.ISO_8859_1);
+		response.setContentLength(content.length);
+		response.getOutputStream().write(content);
 	}
 
 	@Override

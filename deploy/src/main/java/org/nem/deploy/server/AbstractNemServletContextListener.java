@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.EnumSet;
 import javax.servlet.*;
 import javax.servlet.http.*;
-import org.eclipse.jetty.http.MimeTypes;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 
@@ -49,7 +48,6 @@ public abstract class AbstractNemServletContextListener implements ServletContex
 				addDosFilter(context);
 			}
 
-			addGzipFilter(context);
 			addCorsFilter(context);
 		} catch (final Exception e) {
 			throw new RuntimeException(String.format("Exception in contextInitialized: %s", e.toString()), e);
@@ -92,20 +90,13 @@ public abstract class AbstractNemServletContextListener implements ServletContex
 	// region add filter
 
 	private static void addDosFilter(final ServletContext context) {
-		final javax.servlet.FilterRegistration.Dynamic filter = context.addFilter("DoSFilter", "org.eclipse.jetty.servlets.DoSFilter");
+		final javax.servlet.FilterRegistration.Dynamic filter = context.addFilter("DoSFilter", "org.eclipse.jetty.ee8.servlets.DoSFilter");
 		filter.setAsyncSupported(true);
 		filter.setInitParameter("maxRequestsPerSec", "50");
 		filter.setInitParameter("delayMs", "-1");
 		filter.setInitParameter("trackSessions", "false");
 		filter.setInitParameter("maxRequestMs", "120000");
 		filter.setInitParameter("ipWhitelist", "127.0.0.1");
-		filter.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
-	}
-
-	private static void addGzipFilter(final ServletContext context) {
-		final javax.servlet.FilterRegistration.Dynamic filter = context.addFilter("GzipFilter", "org.eclipse.jetty.servlets.GzipFilter");
-		filter.setAsyncSupported(true);
-		filter.setInitParameter("mimeTypes", MimeTypes.Type.APPLICATION_JSON.asString()); // only zip json
 		filter.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
 	}
 

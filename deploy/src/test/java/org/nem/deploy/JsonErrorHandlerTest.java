@@ -4,7 +4,8 @@ import java.io.*;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import net.minidev.json.*;
-import org.eclipse.jetty.server.*;
+import org.eclipse.jetty.ee8.nested.Request;
+import org.eclipse.jetty.ee8.nested.Response;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.*;
 import org.junit.*;
@@ -167,7 +168,7 @@ public class JsonErrorHandlerTest {
 			Mockito.when(this.getResponse().getOutputStream()).thenReturn(this.outputStream);
 		}
 
-		public void handle() throws IOException {
+		public void handle() throws Exception {
 			this.handler.handle("target", this.mockBaseRequest, this.mockRequest, this.mockResponse);
 		}
 

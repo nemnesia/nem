@@ -3,6 +3,8 @@ package org.nem.deploy.server;
 import javax.servlet.*;
 import javax.servlet.annotation.WebListener;
 import org.eclipse.jetty.server.*;
+import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee8.websocket.javax.server.config.JavaxWebSocketServletContainerInitializer;
 import org.nem.deploy.*;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
@@ -39,6 +41,11 @@ public class NemWebsockServerBootstrapper extends AbstractServerBootstrapper {
 	@Override
 	protected ServletContextListener getCustomServletListener() {
 		return new WebsocketContextListener(this.appCtx, this.getConfiguration(), this.configurationPolicy);
+	}
+
+	@Override
+	protected void configureServletContextHandler(final ServletContextHandler servletContext) {
+		JavaxWebSocketServletContainerInitializer.configure(servletContext, (context, container) -> { });
 	}
 
 	@WebListener
