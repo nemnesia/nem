@@ -1,6 +1,6 @@
 # Isolated Hibernate Validator patch modernization
 
-Status: **PARTIAL — Java 17 hosted clean-test failed without accessible logs; Java 25 hosted validation passed**
+Status: **COMPLETE — isolated provider patch validated on Java 17/25; final hosted workflows passed**
 Repository: `nemnesia/nem`
 Branch: `agent/nis-phase0-baseline`
 Requested / actual starting HEAD: `a7ea14e133372e62d6b8562fe23e3792d537c791`
@@ -114,14 +114,15 @@ Environment: OpenJDK `17.0.20.1`, OpenJDK `25.0.4.1`, Maven `3.8.7`.
 | Java 25 `mvn -B clean test` | PASS, all reactor modules; 0 failures, errors, or skips. |
 | Java 25 `mvn -B clean package` | PARTIAL: test phase stopped in `core` because WireMock loopback startup returned `java.net.SocketException: Operation not permitted` (2,361 tests counted, 0 assertion failures, 16 errors, 0 skipped); package goal did not run. |
 | Java 25 `mvn -B -DskipTests package` | PASS, all five reactor modules packaged after the successful full clean test. |
-| Hosted GitHub Actions Java 17 Baseline | Run `36315823163` failed at `Run clean unit tests`; `Package modules` was skipped. Public check annotations expose only `Process completed with exit code 1`; the log endpoint returned `403 Must have admin rights to Repository`, so the failing test/cause cannot be identified. |
-| Hosted GitHub Actions Java 25 Compatibility | Run `36315823240` succeeded. |
+| Hosted GitHub Actions Java 17 Baseline | Code commit run `36315823163` initially failed at `Run clean unit tests`; the log endpoint returned `403 Must have admin rights to Repository`, so its cause could not be identified. On docs-closeout commit `caadcd0c8edcbdf607d0bccdb89d7034296fc03f` (same production dependency/test code), rerun `36316108920` succeeded, including clean unit tests and package. |
+| Hosted GitHub Actions Java 25 Compatibility | Code commit run `36315823240` succeeded. Docs-closeout commit rerun `36316108935` also succeeded. |
 
 The loopback failure during the Java 25 combined clean-package invocation is
 an environment restriction, not evidence of a Hibernate Validator regression:
 the Java 25 full clean test and a separate package build both pass. The newly
-added test passes on both local JDKs. The Java 17 hosted failure detail remains
-an unresolved gate until an authorized log or a successful rerun is available.
+added test passes on both local JDKs. Although the cause of the initial Java 17
+hosted failure is not available, the complete Java 17 and Java 25 workflows
+passed on the subsequent docs-closeout commit containing the same code.
 
 ## Remaining gates
 
