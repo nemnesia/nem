@@ -4,11 +4,19 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.net.Socket;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,6 +42,7 @@ import org.springframework.web.context.support.AnnotationConfigWebApplicationCon
 final class ReadinessProbe {
     private static final Map<String, List<String>> CALLBACKS = new ConcurrentHashMap<>();
     private static final AtomicInteger TRANSPORT_ERROR_CALLBACKS = new AtomicInteger();
+    private static final Set<Long> PREVIOUS_QTP_IDS = new HashSet<>();
 
     private ReadinessProbe() { }
 
@@ -178,7 +187,12 @@ final class ReadinessProbe {
                     + "/" + pool.getIdleThreads() + "/" + pool.getQueueSize()
                     + "; min=" + invoke(pool, "getMinThreads") + "; max=" + invoke(pool, "getMaxThreads")
                     + "; idleTimeout=" + invoke(pool, "getIdleTimeout") + "; reserved=" + invoke(pool, "getReservedThreads")
-                    + "; maxReserved=" + invoke(pool, "getMaxReservedThreads");
+                    + "; maxReserved=" + invoke(pool, "getMaxReservedThreads")
+                    + "; ready=" + invoke(pool, "getReadyThreads") + "; leased=" + invoke(pool, "getLeasedThreads")
+                    + "; utilized=" + invoke(pool, "getUtilizedThreads") + "; availableReserved=" + invoke(pool, "getAvailableReservedThreads")
+                    + "; currentReserved=" + invoke(pool, "getCurrentReservedThreads")
+                    + "; maxEvictCount=" + invoke(pool, "getMaxEvictCount")
+                    + "; lowThreadsThreshold=" + invoke(pool, "getLowThreadsThreshold") + "; pool=" + pool;
         }
         return "jettyPool=" + server.getThreadPool().getClass().getName();
     }
@@ -201,6 +215,138 @@ final class ReadinessProbe {
             }
         }
         return "jvmThreadGroups=" + groups + "; states=" + states + "; jettyWorkerTopFrames=" + jettyTopFrames;
+    }
+
+    static synchronized String qtpIdentitySnapshot(org.eclipse.jetty.server.Server server) {
+        String prefix = server.getThreadPool() instanceof QueuedThreadPool pool ? pool.getName() : "qtp";
+        Map<String, Integer> frameCounts = new LinkedHashMap<>();
+        List<String> identities = new ArrayList<>();
+        int all = 0, qtp = 0, selectors = 0, acceptors = 0, reserved = 0, workers = 0;
+        Set<Long> ids = new HashSet<>();
+        for (Thread thread : Thread.getAllStackTraces().keySet()) {
+            all++;
+            if (!thread.getName().startsWith(prefix)) continue;
+            qtp++;
+            ids.add(thread.getId());
+            StackTraceElement[] stack = thread.getStackTrace();
+            String stackText = java.util.Arrays.toString(stack);
+            String kind = stackText.contains("ManagedSelector") || stackText.contains("SelectorProducer") ? "selector"
+                    : stackText.contains("Acceptor") || stackText.contains("ServerConnector.accept") ? "acceptor"
+                    : stackText.contains("ReservedThreadExecutor") || stackText.contains("reservedWait") ? "reserved"
+                    : "worker";
+            switch (kind) { case "selector" -> selectors++; case "acceptor" -> acceptors++; case "reserved" -> reserved++; default -> workers++; }
+            String top = stack.length == 0 ? "<no-stack>" : stack[0].getClassName() + "." + stack[0].getMethodName();
+            frameCounts.merge(kind + ":" + thread.getState() + ":" + top, 1, Integer::sum);
+            if (identities.size() < 12) {
+                String frame = stack.length == 0 ? "<no-stack>" : stack[0].toString();
+                identities.add(thread.getName() + "#" + thread.getId() + ":" + thread.getState() + ":" + kind + ":" + frame);
+            }
+        }
+        Set<Long> retained = new HashSet<>(ids);
+        retained.retainAll(PREVIOUS_QTP_IDS);
+        Set<Long> added = new HashSet<>(ids);
+        added.removeAll(PREVIOUS_QTP_IDS);
+        Set<Long> removed = new HashSet<>(PREVIOUS_QTP_IDS);
+        removed.removeAll(ids);
+        PREVIOUS_QTP_IDS.clear();
+        PREVIOUS_QTP_IDS.addAll(ids);
+        return "threadIdentity(allJvm=" + all + ",qtp=" + qtp + ",selector=" + selectors + ",acceptor=" + acceptors
+                + ",reserved=" + reserved + ",otherWorkers=" + workers + ",qtpIds=" + ids.size()
+                + ",retained/added/removed=" + retained.size() + "/" + added.size() + "/" + removed.size()
+                + "); qtpTopFrames=" + frameCounts + "; qtpExamples=" + identities;
+    }
+
+    static void httpSnapshot(org.eclipse.jetty.server.Server server, AnnotationConfigWebApplicationContext app, String phase) throws Exception {
+        System.out.println("QTP_CHECKPOINT " + phase + "; " + jettyPool(server) + "; " + qtpIdentitySnapshot(server)
+                + "; " + threadSummary() + "; " + sessions(app) + "; " + stats(app));
+    }
+
+    static void httpRequests(int port, int count, int concurrency, org.eclipse.jetty.server.Server server) throws Exception {
+        QtpSampler sampler = new QtpSampler(server);
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency, runnable -> {
+            Thread thread = new Thread(runnable, "phase2i-l-http-client");
+            thread.setDaemon(true);
+            return thread;
+        });
+        try {
+            List<Future<Integer>> requests = new ArrayList<>();
+            for (int i = 0; i < count; i++) requests.add(executor.submit(() -> {
+                HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:" + port + "/phase2i-l-ping?delay=100").openConnection();
+                connection.setConnectTimeout(3000);
+                connection.setReadTimeout(5000);
+                try {
+                    int status = connection.getResponseCode();
+                    try (var stream = connection.getInputStream()) { stream.readAllBytes(); }
+                    return status;
+                } finally { connection.disconnect(); }
+            }));
+            for (Future<Integer> request : requests) if (200 != request.get(15, TimeUnit.SECONDS)) throw new AssertionError("HTTP probe status != 200");
+        } finally {
+            executor.shutdown();
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) executor.shutdownNow();
+            sampler.close();
+            System.out.println("HTTP_LOAD count=" + count + "; concurrency=" + concurrency + "; " + sampler.summary());
+        }
+    }
+
+    static final class QtpSampler implements AutoCloseable {
+        private final org.eclipse.jetty.server.Server server;
+        private final java.util.concurrent.atomic.AtomicBoolean sampling = new java.util.concurrent.atomic.AtomicBoolean(true);
+        private final java.util.concurrent.atomic.AtomicInteger peakThreads = new java.util.concurrent.atomic.AtomicInteger();
+        private final java.util.concurrent.atomic.AtomicInteger peakBusy = new java.util.concurrent.atomic.AtomicInteger();
+        private final java.util.concurrent.atomic.AtomicInteger peakQueue = new java.util.concurrent.atomic.AtomicInteger();
+        private final Thread thread;
+
+        QtpSampler(org.eclipse.jetty.server.Server server) {
+            this.server = server;
+            this.thread = new Thread(this::sample, "phase2i-l-qtp-sampler");
+            this.thread.setDaemon(true);
+            this.thread.start();
+        }
+
+        private void sample() {
+            while (sampling.get()) {
+                if (server.getThreadPool() instanceof QueuedThreadPool pool) {
+                    peakThreads.accumulateAndGet(pool.getThreads(), Math::max);
+                    peakBusy.accumulateAndGet(pool.getBusyThreads(), Math::max);
+                    peakQueue.accumulateAndGet(pool.getQueueSize(), Math::max);
+                }
+                try { Thread.sleep(10); } catch (InterruptedException ex) { Thread.currentThread().interrupt(); return; }
+            }
+        }
+
+        String summary() { return "peakQtpThreads=" + peakThreads.get() + "; peakBusy=" + peakBusy.get() + "; peakQueue=" + peakQueue.get(); }
+
+        @Override public void close() throws InterruptedException {
+            sampling.set(false);
+            thread.join(1000);
+        }
+    }
+
+    static HttpResult httpGet(int port, String path, String origin) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:" + port + path).openConnection();
+        connection.setConnectTimeout(3000);
+        connection.setReadTimeout(5000);
+        if (null != origin) connection.setRequestProperty("Origin", origin);
+        try {
+            int status = connection.getResponseCode();
+            var stream = status < 400 ? connection.getInputStream() : connection.getErrorStream();
+            String body = null == stream ? "" : new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            return new HttpResult(status, connection.getHeaderField("Access-Control-Allow-Origin"), body);
+        } finally { connection.disconnect(); }
+    }
+
+    record HttpResult(int status, String allowOrigin, String body) { }
+
+    static void checkpoints(org.eclipse.jetty.server.Server server, AnnotationConfigWebApplicationContext app,
+            String prefix, int... seconds) throws Exception {
+        long start = System.nanoTime();
+        for (int second : seconds) {
+            long target = start + TimeUnit.SECONDS.toNanos(second);
+            long wait = target - System.nanoTime();
+            if (wait > 0) TimeUnit.NANOSECONDS.sleep(wait);
+            httpSnapshot(server, app, prefix + "@" + second + "s");
+        }
     }
 
     private static Object invoke(Object target, String method) {
