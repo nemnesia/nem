@@ -11,7 +11,7 @@ async-support の servlet/filter 登録原因を修正し、Jetty 9 と Jetty 12
 - Repository: `nemnesia/nem`
 - Branch: `agent/nis-phase0-baseline`
 - Requested / actual starting HEAD: `ac085f7ee383abf9dc9061c9748d3d32eb037759`
-- Final HEAD: commit 後に記録する
+- Production/test implementation HEAD (local + hosted validation): `235c54dede1183f28723d5cd735764ebc971e4b9`. Hosted-result documentation is committed in a follow-up commit.
 - Production Jetty migration: 未実施。Jetty 9 production dependency と bootstrap を維持
 
 ## 実装差分
@@ -79,7 +79,9 @@ Jetty 9 batch 前後にも非単調な小幅縮退がある一方、Jetty 12 は
 
 ## Hosted CI / 独立 gate
 
-- GitHub CLI の保存tokenは無効で API 接続も利用できなかった。通常 push 後に public Actions page を確認し、run ID と結果を追記する。確認不能なら未検証と記録する。
+- Java 17 Baseline run [`36297924232`](https://github.com/nemnesia/nem/actions/runs/36297924232), commit `235c54dede1183f28723d5cd735764ebc971e4b9`: success。`Run clean unit tests` と `Package modules` が成功。
+- Java 25 Compatibility run [`36297924206`](https://github.com/nemnesia/nem/actions/runs/36297924206), 同一 commit: success。`Run clean unit tests` と `Package modules` が成功。
+- GitHub CLI の保存tokenは無効だったが、public Actions metadata / jobs API を読み run status と各 step の結果を確認した。
 - Jenkins Java 17 image / pinned shared-library blocker は未解決。GitHub Actions / local successで置き換えない。
 - Phase 2F の H2 offline conversion、Flyway history/checksum、代表 Mainnet/Testnet DB、matching-genesis chain-state comparison は未解決の独立 rollout gateで維持。
 - Phase 2I-M の production Jetty 12 trialで `/messages` WebSocket 404が観測された履歴は維持する。Phase 2I-Pの現production-equivalent正しい `/w/*` pathではJetty 12 WebSocket handshake/ STOMPが成功し、歴史的404の原因は未確定のまま。
