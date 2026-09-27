@@ -2,9 +2,9 @@
 
 ## Result
 
-**PARTIAL — PRODUCTION JETTY 12 MIGRATION NOT STARTED**
+**COMPLETE — READY FOR PRODUCTION JETTY 12 MIGRATION**
 
-The two Phase 2I-Q uncertainties are now characterized on the test-only production-equivalent Jetty 9 and Jetty 12 EE8 runtimes. Abrupt EOF has a Jetty 12 callback-count difference, but the callback ordering, Spring implementation, and cleanup evidence indicate a transport-layer EOF notification rather than an NIS application failure. QTP worker retention is bounded and shrinks slowly according to each pinned Jetty line's pool-wide eviction policy. This is useful readiness evidence, but hosted Java 17/25 CI for this revision has not yet been obtained; therefore the final readiness gate remains PARTIAL.
+The two Phase 2I-Q uncertainties are characterized on test-only production-equivalent Jetty 9 and Jetty 12 EE8 runtimes. Abrupt EOF has a Jetty 12 callback-count difference, but callback ordering, Spring implementation, and cleanup evidence indicate a transport-layer EOF notification rather than an NIS application failure. QTP worker retention is bounded and shrinks slowly according to each pinned Jetty line's pool-wide eviction policy. Java 17/25 local test/package and hosted Java 17/25 workflows succeeded for the evidence commit. **This phase is ready to hand off to a separate production migration phase.**
 
 No production Jetty dependency, bootstrap, Spring configuration, or application behavior was changed. The production Jetty 12 migration was not started.
 
@@ -13,6 +13,7 @@ No production Jetty dependency, bootstrap, Spring configuration, or application 
 - Repository: `nemnesia/nem`
 - Branch: `agent/nis-phase0-baseline`
 - Requested / actual starting HEAD: `56447225c3357c28613548c5b410a00ebdc876dc`
+- Evidence commit: `a0802c66ed6cd754bdd2b8dbaf8a6e4b01efe92b`; the final documentation result is a follow-up commit.
 - Jetty 9: `9.4.58.v20250814`
 - Jetty 12: `12.1.13` EE8
 - Spring Framework: `5.3.39`
@@ -92,7 +93,9 @@ The observed slow shrink is consistent with both pinned QTP implementations. In 
 - Java 25 `mvn -B clean package`: **success**, 6,220 tests; 0 failures, 0 errors, 0 skipped.
 - Jetty 9/12 standard client probes on Java 17: two normal WebSocket and two XHR polling sessions per runtime, abrupt 100-connection WebSocket close, graceful close frame, active-session server shutdown, and five batches of 100 abandoned XHR sessions. All normal sessions reached STOMP CONNECTED and receipt-bearing DISCONNECT; SockJS maps returned to zero. The five-batch XHR probe produced zero session maps after every batch.
 - Jetty 12 EE8 probes on Java 25: two normal WebSocket and two XHR polling sessions; 100 abrupt WebSocket closes (100 error callbacks then 100 close callbacks, cleanup to zero and reconnect); one normal close frame (0 error, 1 close callback); and 100 abandoned XHR sessions (0 by 45 seconds). All POC Maven executions succeeded.
-- Hosted GitHub Actions Java 17 / Java 25 results: to be checked after pushing this commit.
+- Hosted GitHub Actions for evidence commit `a0802c66ed6cd754bdd2b8dbaf8a6e4b01efe92b`:
+  - [Java 17 Baseline run 36300800961](https://github.com/nemnesia/nem/actions/runs/36300800961): **success**; clean unit tests and package modules steps succeeded.
+  - [Java 25 Compatibility run 36300800958](https://github.com/nemnesia/nem/actions/runs/36300800958): **success**; clean unit tests and package modules steps succeeded.
 
 Test-only files changed in this phase are the Jetty 9/12 readiness controls, shared QTP/callback instrumentation, and the standard SockJS client probe. Production dependencies and production source are unchanged.
 
@@ -104,4 +107,4 @@ Test-only files changed in this phase are the Jetty 9/12 readiness controls, sha
 - The Phase 2I-M historical production trial WebSocket 404 remains part of the record; Phase 2I-P found it unreproducible on the current correct `/w/*` production-equivalent route and did not retroactively change that history.
 - QTP behavior was measured on this test harness and workload. The reserved-thread capacity differs by Jetty line; these observations do not substitute for production capacity/operations testing.
 
-Production Jetty 12 migration remains out of scope for Phase 2I-R. Because hosted CI is not yet confirmed, the readiness verdict is **PARTIAL**, not a production migration authorization.
+Production Jetty 12 migration remains out of scope for Phase 2I-R. This verdict only opens the entry gate for a separately reviewed production migration phase; it does not perform that migration. Jenkins Java 17 infrastructure and Phase 2F DB/Flyway gates remain independent unresolved rollout gates.
