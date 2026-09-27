@@ -9,19 +9,6 @@
         <name>NEM - New Economy Movement</name>
         <url>http://nem.io</url>
     </organization>
-    <repositories>
-        <repository>
-            <id>hibernate-repo</id>
-            <name>SpringSource OSGi Bundle External</name>
-            <url>https://repository.jboss.org/nexus/content/repositories/central/</url>
-        </repository>
-        <repository>
-            <id>springsource-repo</id>
-            <name>SpringSource Repository</name>
-            <url>http://repo.springsource.org/release</url>
-        </repository>
-    </repositories>
-
     <properties>
         <nemCodeBase>http://bob.nem.ninja/</nemCodeBase>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
