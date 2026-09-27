@@ -56,6 +56,7 @@ public class NemWebsockServerBootstrapper extends AbstractServerBootstrapper {
 			final ServletRegistration.Dynamic dispatcher = context.addServlet("Spring Websocket Dispatcher Servlet",
 					new DispatcherServlet(webCtx));
 			dispatcher.addMapping(String.format("%s%s", "/w", "/*"));
+			dispatcher.setAsyncSupported(true);
 			dispatcher.setLoadOnStartup(1);
 		}
 	}

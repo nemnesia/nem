@@ -8,6 +8,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -17,7 +18,6 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import javax.servlet.ServletRegistration;
 import javax.servlet.http.HttpServletMapping;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -37,6 +37,13 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.nem.deploy.server.AbstractNemServletContextListener;
 import org.nem.specific.deploy.NisWebAppWebsocketInitializer;
 import org.nem.specific.deploy.NisWebSocketUpgradeStrategyProvider;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.SubscribableChannel;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.ExecutorSubscribableChannel;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -55,10 +62,7 @@ public final class ProductionParityControl {
     private static final List<String> EVENTS = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static volatile Class<?> selectedStrategy;
     private static volatile AnnotationConfigWebApplicationContext childContext;
-    private static volatile boolean correctedAsync;
-
     public static void main(String[] args) throws Exception {
-        correctedAsync = args.length > 0 && "corrected".equals(args[0]);
         AnnotationConfigApplicationContext parent = new AnnotationConfigApplicationContext();
         parent.register(Jetty12SockJsControl.TestDependencies.class);
         parent.refresh();
@@ -85,20 +89,39 @@ public final class ProductionParityControl {
         int port = connector.getLocalPort();
         try {
             logRuntimeRegistrations(servlet, "after-start");
-            record("server-started mode=" + (correctedAsync ? "corrected-async" : "production-equivalent")
+            AtomicInteger connects = observeConnects();
+            record("server-started mode=production-async-enabled-candidate"
                     + " port=" + port + " container=" + container(servlet.getServletContext())
                     + " strategy=" + selectedStrategy);
             var info = ReadinessProbe.httpGet(port, "/w/messages/info", "http://nis-test.invalid");
             record("info method=GET url=/w/messages/info status=" + info.status() + " body=" + info.body());
-            var missingPrefixInfo = ReadinessProbe.httpGet(port, "/messages/info", "http://nis-test.invalid");
-            record("wrong-prefix method=GET url=/messages/info status=" + missingPrefixInfo.status()
-                    + " body=" + missingPrefixInfo.body());
-            record("wrong-prefix-websocket=" + ReadinessProbe.rawHandshake(port,
-                    "/messages/000/phase2i-o-wrong-prefix/websocket", null, "valid"));
-            runClient(port, "websocket");
-            runClient(port, "xhr-polling");
-            Thread.sleep(10_000);
-            record("after-cleanup " + ReadinessProbe.sessions(childContext));
+            ReadinessProbe.httpSnapshot(server, childContext, "async-enabled-baseline");
+            for (int i = 1; i <= 2; i++) {
+                runClient(port, "websocket", i);
+                runClient(port, "xhr-polling", i);
+                ReadinessProbe.httpSnapshot(server, childContext, "smoke-cycle-" + i);
+            }
+            if (args.length > 0 && "lifecycle".equals(args[0])) {
+                runNormalBatch(port, "websocket", 100, connects, server, "websocket-normal-100");
+                runNormalBatch(port, "xhr-polling", 10, connects, server, "xhr-normal-10-additional");
+                runAbnormalBatch(port, "websocket", 100, connects, server, "websocket-abrupt-100");
+                awaitCleanup(server, "websocket-abrupt-100", 15);
+                for (int batch = 1; batch <= 3; batch++) {
+                    runAbnormalBatch(port, "xhr-polling", 100, connects, server, "xhr-abandoned-100-batch-" + batch);
+                    awaitCleanup(server, "xhr-abandoned-100-batch-" + batch, 70);
+                }
+                int[] checkpoints = { 10, 30, 60, 90, 120 };
+                int previous = 0;
+                for (int checkpoint : checkpoints) {
+                    Thread.sleep((checkpoint - previous) * 1000L);
+                    previous = checkpoint;
+                    ReadinessProbe.httpSnapshot(server, childContext, "post-abandoned-idle-" + checkpoint + "s");
+                }
+            } else {
+                awaitCleanup(server, "smoke", 12);
+            }
+            record("final-sessions " + ReadinessProbe.sessions(childContext) + "; connects=" + connects.get()
+                    + "; callbacks=" + ReadinessProbe.callbackSummary());
         } finally {
             server.stop();
             server.join();
@@ -108,7 +131,19 @@ public final class ProductionParityControl {
         EVENTS.forEach(System.out::println);
     }
 
-    private static void runClient(int port, String transport) throws Exception {
+    private static AtomicInteger observeConnects() {
+        AtomicInteger connects = new AtomicInteger();
+        ((ExecutorSubscribableChannel) childContext.getBean("clientInboundChannel", SubscribableChannel.class))
+                .addInterceptor(new ChannelInterceptor() {
+                    @Override public Message<?> preSend(Message<?> message, MessageChannel channel) {
+                        if (StompCommand.CONNECT == StompHeaderAccessor.getCommand(message.getHeaders())) connects.incrementAndGet();
+                        return message;
+                    }
+                });
+        return connects;
+    }
+
+    private static void runClient(int port, String transport, int iteration) throws Exception {
         Process process = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-client-probe.js",
                 "http://localhost:" + port + "/w/messages", transport, "12000", "expect-nis-message", "normal")
                 .redirectErrorStream(true).start();
@@ -119,7 +154,82 @@ public final class ProductionParityControl {
             record("client transport=" + transport + " timed-out output=" + new String(output));
             return;
         }
-        record("client transport=" + transport + " exit=" + process.exitValue() + " output=" + new String(output).trim());
+        if (process.exitValue() != 0) throw new AssertionError("client failed transport=" + transport + " output=" + new String(output));
+        record("client iteration=" + iteration + " transport=" + transport + " exit=" + process.exitValue()
+                + " output=" + new String(output).trim());
+    }
+
+    private static void runNormalBatch(int port, String transport, int count, AtomicInteger connects,
+            Server server, String label) throws Exception {
+        int before = connects.get();
+        ReadinessProbe.httpSnapshot(server, childContext, label + "-before");
+        if ("xhr-polling".equals(transport)) {
+            for (int i = 1; i <= count; i++) runClient(port, transport, i);
+            if (connects.get() - before != count) throw new AssertionError(label + " CONNECT delta=" + (connects.get() - before));
+            awaitCleanup(server, label, 20);
+            ReadinessProbe.httpSnapshot(server, childContext, label + "-after-cleanup");
+            return;
+        }
+        for (int completed = 0; completed < count; completed += 10) {
+            int batchSize = Math.min(10, count - completed);
+            Process process = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-normal-batch.js",
+                    "http://localhost:" + port + "/w/messages", transport, Integer.toString(batchSize),
+                    "xhr-polling".equals(transport) ? "1" : "10").inheritIO().start();
+            if (!process.waitFor(180, TimeUnit.SECONDS)) {
+                process.destroyForcibly().waitFor(5, TimeUnit.SECONDS);
+                throw new AssertionError(label + " timed out after " + completed + " cycles");
+            }
+            if (process.exitValue() != 0) {
+                throw new AssertionError(label + " failed after " + completed + " cycles exit=" + process.exitValue());
+            }
+        }
+        if (connects.get() - before != count) throw new AssertionError(label + " CONNECT delta=" + (connects.get() - before));
+        awaitCleanup(server, label, 15);
+        ReadinessProbe.httpSnapshot(server, childContext, label + "-after-cleanup");
+    }
+
+    private static void runAbnormalBatch(int port, String transport, int count, AtomicInteger connects,
+            Server server, String label) throws Exception {
+        int before = connects.get();
+        ReadinessProbe.resetCallbacks();
+        ReadinessProbe.httpSnapshot(server, childContext, label + "-before");
+        ReadinessProbe.QtpSampler sampler = new ReadinessProbe.QtpSampler(server);
+        Process process = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-abrupt-batch.js",
+                "http://localhost:" + port + "/w/messages", transport, Integer.toString(count)).inheritIO().start();
+        try {
+            if (!process.waitFor(60, TimeUnit.SECONDS)) {
+                process.destroyForcibly().waitFor(5, TimeUnit.SECONDS);
+                throw new AssertionError(label + " timed out");
+            }
+            if (process.exitValue() != 0) {
+                throw new AssertionError(label + " failed exit=" + process.exitValue());
+            }
+        } finally { sampler.close(); }
+        if (connects.get() - before != count) throw new AssertionError(label + " CONNECT delta=" + (connects.get() - before));
+        record(label + " sampler=" + sampler.summary() + "; callbacks=" + ReadinessProbe.callbackSummary()
+                + "; sessions=" + ReadinessProbe.sessions(childContext) + "; pool=" + ReadinessProbe.jettyPool(server));
+        ReadinessProbe.httpSnapshot(server, childContext, label + "-connected");
+    }
+
+    private static void awaitCleanup(Server server, String label, int timeoutSeconds) throws Exception {
+        long start = System.nanoTime();
+        int[] checkpoints = { 0, 10, 30, 45, 60, timeoutSeconds };
+        int nextCheckpoint = 0;
+        while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start) <= timeoutSeconds) {
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+            int elapsedSeconds = (int) (elapsedMs / 1000);
+            while (nextCheckpoint < checkpoints.length && checkpoints[nextCheckpoint] <= elapsedSeconds) {
+                ReadinessProbe.httpSnapshot(server, childContext, label + "-cleanup-t" + checkpoints[nextCheckpoint] + "s");
+                nextCheckpoint++;
+            }
+            if (elapsedMs > 0 && ReadinessProbe.sessionCount(childContext) == 0) {
+                record(label + " cleanupElapsedMs=" + elapsedMs);
+                return;
+            }
+            Thread.sleep(250);
+        }
+        if (ReadinessProbe.sessionCount(childContext) != 0) throw new AssertionError(label + " left sessions " + ReadinessProbe.sessions(childContext));
+        record(label + " cleanupElapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
     }
 
     private static void logRuntimeRegistrations(ServletContextHandler context, String when) {
@@ -165,7 +275,7 @@ public final class ProductionParityControl {
 
     private static final class ProductionWebsocketListener extends AbstractNemServletContextListener {
         ProductionWebsocketListener(AnnotationConfigApplicationContext parent) {
-            super(parent, NisWebAppWebsocketInitializer.class, true);
+            super(parent, Jetty12SockJsControl.InstrumentedNisWebsocketInitializer.class, true);
         }
 
         @Override
@@ -178,13 +288,6 @@ public final class ProductionParityControl {
             var diag = context.addFilter("Phase2IORequestTrace", new RequestTraceFilter());
             diag.setAsyncSupported(true);
             diag.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
-            if (correctedAsync) {
-                for (var registration : context.getFilterRegistrations().values()) {
-                    ((javax.servlet.FilterRegistration.Dynamic) registration).setAsyncSupported(true);
-                }
-                ((ServletRegistration.Dynamic) context.getServletRegistration("Spring Websocket Dispatcher Servlet")).setAsyncSupported(true);
-                record("diagnostic-correction enabled async support on every filter and DispatcherServlet");
-            }
             record("production-listener-exit servletRegs=" + context.getServletRegistrations().keySet()
                     + " filterRegs=" + context.getFilterRegistrations().keySet()
                     + " attrs=" + attributes(context));
@@ -203,9 +306,9 @@ public final class ProductionParityControl {
             var dispatcher = context.addServlet("Spring Websocket Dispatcher Servlet", new DispatcherServlet(webCtx));
             dispatcher.addMapping("/w/*");
             dispatcher.setLoadOnStartup(1);
-            if (correctedAsync) dispatcher.setAsyncSupported(true);
+            dispatcher.setAsyncSupported(true);
             record("dispatcher-registered name=Spring Websocket Dispatcher Servlet mapping=/w/* asyncSupported="
-                    + correctedAsync);
+                    + true);
         }
     }
 

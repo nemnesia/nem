@@ -93,6 +93,7 @@ public abstract class AbstractNemServletContextListener implements ServletContex
 
 	private static void addDosFilter(final ServletContext context) {
 		final javax.servlet.FilterRegistration.Dynamic filter = context.addFilter("DoSFilter", "org.eclipse.jetty.servlets.DoSFilter");
+		filter.setAsyncSupported(true);
 		filter.setInitParameter("maxRequestsPerSec", "50");
 		filter.setInitParameter("delayMs", "-1");
 		filter.setInitParameter("trackSessions", "false");
@@ -103,6 +104,7 @@ public abstract class AbstractNemServletContextListener implements ServletContex
 
 	private static void addGzipFilter(final ServletContext context) {
 		final javax.servlet.FilterRegistration.Dynamic filter = context.addFilter("GzipFilter", "org.eclipse.jetty.servlets.GzipFilter");
+		filter.setAsyncSupported(true);
 		filter.setInitParameter("mimeTypes", MimeTypes.Type.APPLICATION_JSON.asString()); // only zip json
 		filter.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
 	}
@@ -128,6 +130,7 @@ public abstract class AbstractNemServletContextListener implements ServletContex
 			}
 		});
 
+		filter.setAsyncSupported(true);
 		filter.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
 	}
 
