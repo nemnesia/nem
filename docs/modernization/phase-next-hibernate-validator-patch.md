@@ -1,10 +1,11 @@
 # Isolated Hibernate Validator patch modernization
 
-Status: **PARTIAL — local Java 25 clean-package attempt is blocked by loopback policy; hosted CI pending**  
-Repository: `nemnesia/nem`  
-Branch: `agent/nis-phase0-baseline`  
-Requested / actual starting HEAD: `a7ea14e133372e62d6b8562fe23e3792d537c791`  
-Final HEAD: recorded in the final task report after commit  
+Status: **PARTIAL — Java 17 hosted clean-test failed without accessible logs; Java 25 hosted validation passed**
+Repository: `nemnesia/nem`
+Branch: `agent/nis-phase0-baseline`
+Requested / actual starting HEAD: `a7ea14e133372e62d6b8562fe23e3792d537c791`
+Implementation HEAD: `84044374016708d54c440349651d666c756cf867`
+Final HEAD: see final task report; a docs-only closeout records hosted CI results.
 Date: 2026-09-27
 
 ## Scope and selected task
@@ -108,18 +109,19 @@ Environment: OpenJDK `17.0.20.1`, OpenJDK `25.0.4.1`, Maven `3.8.7`.
 | Java 17 `mvn -B -pl nis -am -Dtest=HibernateValidatorCompatibilityTest -Dsurefire.failIfNoSpecifiedTests=false test` | PASS, 1 test, 0 failures/errors/skips. Runtime log reports Hibernate Validator `6.2.5.Final`. |
 | Java 17 `mvn -B clean test` | PASS, all reactor modules; 0 failures, errors, or skips. The first sandbox attempt failed to bind WireMock loopback (`java.net.SocketException: Operation not permitted`); retry with normal elevated command execution passed. |
 | Java 17 `mvn -B clean package` | PASS, all reactor modules and package phase. Initial sandbox attempt had the same loopback restriction; retry passed. |
-| Java 17 `mvn -B -DskipTests package` | PASS, all five reactor modules packaged. This is compile/package evidence and does not replace the blocked full test phase. |
+| Java 17 `mvn -B -DskipTests package` | PASS, all five reactor modules packaged. |
 | Java 25 focused compatibility test | PASS, 1 test, 0 failures/errors/skips. |
 | Java 25 `mvn -B clean test` | PASS, all reactor modules; 0 failures, errors, or skips. |
 | Java 25 `mvn -B clean package` | PARTIAL: test phase stopped in `core` because WireMock loopback startup returned `java.net.SocketException: Operation not permitted` (2,361 tests counted, 0 assertion failures, 16 errors, 0 skipped); package goal did not run. |
 | Java 25 `mvn -B -DskipTests package` | PASS, all five reactor modules packaged after the successful full clean test. |
-| Hosted GitHub Actions Java 17 / Java 25 | To be recorded after push. |
+| Hosted GitHub Actions Java 17 Baseline | Run `36315823163` failed at `Run clean unit tests`; `Package modules` was skipped. Public check annotations expose only `Process completed with exit code 1`; the log endpoint returned `403 Must have admin rights to Repository`, so the failing test/cause cannot be identified. |
+| Hosted GitHub Actions Java 25 Compatibility | Run `36315823240` succeeded. |
 
 The loopback failure during the Java 25 combined clean-package invocation is
 an environment restriction, not evidence of a Hibernate Validator regression:
 the Java 25 full clean test and a separate package build both pass. The newly
-added test passes on both local JDKs. Hosted CI is still required to validate
-the normal repository workflow independently.
+added test passes on both local JDKs. The Java 17 hosted failure detail remains
+an unresolved gate until an authorized log or a successful rerun is available.
 
 ## Remaining gates
 
