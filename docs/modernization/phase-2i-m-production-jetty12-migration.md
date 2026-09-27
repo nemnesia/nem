@@ -62,7 +62,10 @@ production migration 試行中の runtime dependency tree は Jetty `12.1.13` EE
 - reverted baseline の Java 17 `mvn -B clean package`: Core の同じ 16 WireMock errors で test phase が停止し、package phase まで到達しなかった。
 - Java 25 clean test/package: 今回未実行。Java 25 が Java 17 の代用にはならない。
 - Docker build/smoke: Docker daemon API が利用不可のため未実施。
-- Hosted Java 17/25 CI: この BLOCKED docs-only change に対する run は push 後確認する。Jetty 12 runtime CI の成功は未確認。
+- Hosted Java 17 Baseline: run `36290466379`、commit `dd6e99c5bf968378e5cc9f1eb8d5a3b329ced063`、成功（`mvn -B clean test` / `mvn -B -DskipTests package`）。
+- Hosted Java 25 Compatibility: run `36290466393`、同 commit、成功（clean test / package）。Java 25 は補助 verification で、Java 17 の代替ではない。
+- これらの run は production dependency/bootstrap が開始 HEAD と同一の docs-only blocker 記録 commit を対象にしており、Jetty 12 trial tree の hosted runtime test ではない。
+- Jenkins Java 17 execution blocker は未解決。Docker production image build/smoke は daemon 不可のため未実施。
 
 ## 既知の独立 gate
 
