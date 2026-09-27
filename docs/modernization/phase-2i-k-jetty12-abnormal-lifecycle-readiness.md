@@ -85,6 +85,7 @@ Hosted workflow evidence:
 
 - Java 17 Baseline run [`36284615185`](https://github.com/nemnesia/nem/actions/runs/36284615185), commit `c3027972c712ecdaaa811a46df92d88415561990`: `Run clean unit tests` and `Package modules` succeeded.
 - Java 25 Compatibility run [`36284615182`](https://github.com/nemnesia/nem/actions/runs/36284615182), same commit: `Run clean unit tests` and `Package modules` succeeded. This is compatibility evidence only, not a Java 17 substitute.
+- Documentation follow-up HEAD `e9f256a3fdf0478c2b54a09823a11495371d7d8f` was also verified: Java 17 Baseline run [`36284822528`](https://github.com/nemnesia/nem/actions/runs/36284822528) and Java 25 Compatibility run [`36284822511`](https://github.com/nemnesia/nem/actions/runs/36284822511) both completed `success`, including clean test and package.
 
 ## Existing independent gates
 
@@ -100,6 +101,6 @@ Production code changes: none. The NIS unit-test fixture is deterministic; the J
 
 1. Resolve or further characterize QTP worker retention after 60 seconds idle; thread counts are idle-dominated and noisy, but did not shrink to baseline during the observation window.
 2. Run the Jetty 12 one-session retention sample and, if readiness claims depend on it, extend post-idle/repeated-batch observation beyond the measured window.
-3. Clarify why Jetty 9/12 QTP retains excess idle workers beyond the configured `idleTimeout`, and determine whether the 34→54→58 Jetty 12 batch counts reflect normal pool growth or a lifecycle retention issue. Repeat hosted Java 17/25 workflows after this documentation-only follow-up commit; Java 25 cannot substitute for Java 17.
+3. Clarify why Jetty 9/12 QTP retains excess idle workers beyond the configured `idleTimeout`, and determine whether the 34→54→58 Jetty 12 batch counts reflect normal pool growth or a lifecycle retention issue. Hosted Java 17/25 validation passed on the documented follow-up HEAD; Java 25 cannot substitute for Java 17.
 
 Until these are complete and all parity results are reviewed, Jetty 12 production migration must remain gated.
