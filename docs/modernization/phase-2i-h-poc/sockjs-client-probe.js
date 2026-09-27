@@ -12,6 +12,7 @@ let stompSessionReady = false;
 let normalDisconnectSent = false;
 let malformedFrameSent = false;
 let selectedTransport = null;
+let errorProbeFinished = false;
 const sock = new SockJS(endpoint, null, {
   transports: [transport],
   timeout: 5000
@@ -62,14 +63,20 @@ sock.onmessage = (event) => {
     process.exit(0);
     return;
   }
-  if (mode === 'invalid-stomp' && event.data.startsWith('ERROR')) {
-    finish('stomp-error-frame');
-    return;
-  }
-  if (mode === 'invalid-stomp' && event.data.startsWith('CONNECTED') && !malformedFrameSent) {
+  if (mode.startsWith('error-') && event.data.startsWith('CONNECTED') && !malformedFrameSent) {
     malformedFrameSent = true;
-    sock.send('INVALID_STOMP_FRAME\u0000');
-    setTimeout(() => finish('no-error-observed-after-malformed-frame'), 1500);
+    const frames = {
+      'error-invalid-command': 'INVALID_STOMP_FRAME\u0000',
+      'error-missing-destination': 'SEND\ncontent-length:0\n\n\u0000',
+      'error-invalid-subscribe': 'SUBSCRIBE\nid:bad-sub\n\n\u0000'
+    };
+    sock.send(frames[mode]);
+    setTimeout(() => {
+      if (errorProbeFinished) return;
+      errorProbeFinished = true;
+      console.log(JSON.stringify({ requestedTransport: transport, selectedTransport, errorProbe: mode, events }));
+      process.exit(0); // preserve server-side abnormal/timeout behavior; do not send client close
+    }, 2000);
     return;
   }
   if (event.data.startsWith('CONNECTED') && !stompSessionReady) {
