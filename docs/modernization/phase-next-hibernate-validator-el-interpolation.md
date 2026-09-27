@@ -3,6 +3,7 @@
 ## Scope and status
 
 - Requested and actual starting HEAD: `035fd20996c3b32b3c8716dc99f0ae854c2101d7`
+- Final validated implementation HEAD: `a9ecdd66e1e697711ac91f922017812fb32ea554` (hosted Java 17/25 validation below). A separate docs-only follow-up records those completed run IDs.
 - Branch: `agent/nis-phase0-baseline`
 - Goal: check the runtime path after the existing Hibernate Validator 6.2.5.Final upgrade. This is not a Jakarta migration.
 - Status: **COMPLETE — current NIS validation bootstrap requires an EL implementation to initialize correctly.**
