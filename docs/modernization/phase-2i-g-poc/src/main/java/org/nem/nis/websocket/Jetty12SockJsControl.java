@@ -48,6 +48,7 @@ import org.springframework.messaging.support.ExecutorSubscribableChannel;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.socket.config.WebSocketMessageBrokerStats;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 import org.springframework.web.socket.server.HandshakeFailureException;
 import org.springframework.web.socket.server.standard.AbstractStandardUpgradeStrategy;
 import org.springframework.web.socket.server.standard.ServerEndpointRegistration;
@@ -58,12 +59,21 @@ public final class Jetty12SockJsControl {
         int iterations = args.length > 0 ? Integer.parseInt(args[0]) : 1;
         boolean cleanupOnly = args.length > 1 && "cleanup-only".equals(args[1]);
         boolean normalOnly = args.length > 1 && "normal-only".equals(args[1]);
+        boolean xhrAbandonmentProbe = args.length > 1 && "abnormal-xhr".equals(args[1]);
+        boolean websocketAbnormalProbe = args.length > 1 && "abnormal-websocket".equals(args[1]);
+        boolean websocketPriorProbe = args.length > 1 && "abnormal-websocket-with-prior".equals(args[1]);
+        boolean repeatedXhrProbe = args.length > 1 && "abnormal-xhr-batches".equals(args[1]);
+        boolean stompErrorProbe = args.length > 1 && "stomp-error".equals(args[1]);
+        int xhrAbandonmentCount = xhrAbandonmentProbe && args.length > 2 ? Integer.parseInt(args[2]) : 1;
+        int websocketAbnormalCount = (websocketAbnormalProbe || websocketPriorProbe) && args.length > 2 ? Integer.parseInt(args[2]) : 1;
+        int repeatedXhrCount = repeatedXhrProbe && args.length > 2 ? Integer.parseInt(args[2]) : 100;
+        int observationSeconds = xhrAbandonmentProbe && args.length > 3 ? Integer.parseInt(args[3]) : 90;
         ServletContextHandler servlet = new ServletContextHandler();
         servlet.setContextPath("/");
         JavaxWebSocketServletContainerInitializer.configure(servlet, null);
         AnnotationConfigWebApplicationContext app = new AnnotationConfigWebApplicationContext();
         app.setServletContext(servlet.getServletContext());
-        app.register(NisWebAppWebsocketInitializer.class, TestDependencies.class);
+        app.register(InstrumentedNisWebsocketInitializer.class, TestDependencies.class);
         servlet.addServlet(new ServletHolder(new DispatcherServlet(app)), "/");
         Server server = new Server(0);
         server.setHandler(servlet);
@@ -86,20 +96,70 @@ public final class Jetty12SockJsControl {
             });
             if (info.statusCode() != 200) throw new AssertionError("SockJS /info status=" + info.statusCode());
             checkOriginMatrix(client, port);
-            runSockJsClient(port, "websocket", connects, "Jetty 12 websocket", iterations);
-            runSockJsClient(port, "xhr-polling", connects, "Jetty 12 xhr-polling", iterations);
+            if (stompErrorProbe) {
+                String transport = args.length > 2 ? args[2] : "websocket";
+                String errorCase = args.length > 3 ? args[3] : "error-invalid-command";
+                runErrorProbe(port, transport, errorCase);
+                dumpStats(server, app, "Jetty 12 after STOMP error observation");
+            } else if (repeatedXhrProbe) {
+                System.out.println("Jetty 12 repeated XHR baseline " + ReadinessProbe.jettyPool(server) + "; " + ReadinessProbe.threadSummary());
+                for (int batch = 1; batch <= 3; batch++) {
+                    long start = System.nanoTime();
+                    runAbnormalBatch(port, "xhr-polling", connects, repeatedXhrCount, app, "Jetty 12 abandoned XHR batch " + batch);
+                    long deadline = System.nanoTime() + Duration.ofSeconds(70).toNanos();
+                    while (ReadinessProbe.sessionCount(app) > 0 && System.nanoTime() < deadline) Thread.sleep(250);
+                    System.out.println("Jetty 12 repeated XHR batch=" + batch + "; cleanupMs=" + Duration.ofNanos(System.nanoTime() - start).toMillis()
+                            + "; remaining=" + ReadinessProbe.sessionCount(app) + "; " + ReadinessProbe.sessions(app)
+                            + "; " + ReadinessProbe.jettyPool(server) + "; " + ReadinessProbe.threadSummary());
+                    if (ReadinessProbe.sessionCount(app) != 0) throw new AssertionError("XHR batch did not clean up: " + batch);
+                }
+                Thread.sleep(65000);
+                System.out.println("Jetty 12 repeated XHR after idleTimeout+5s; " + ReadinessProbe.sessions(app)
+                        + "; " + ReadinessProbe.jettyPool(server) + "; " + ReadinessProbe.threadSummary());
+            } else if (websocketAbnormalProbe || websocketPriorProbe) {
+                ReadinessProbe.resetCallbacks();
+                if (websocketPriorProbe) {
+                    runSockJsClient(port, "websocket", connects, "Jetty 12 preliminary abrupt WebSocket", 1, "abrupt");
+                }
+                runAbnormalBatch(port, "websocket", connects, websocketAbnormalCount, app, "Jetty 12 abrupt WebSocket probe");
+                System.out.println("Jetty 12 abrupt WebSocket callback probe " + ReadinessProbe.callbackSummary());
+                dumpStats(server, app, "Jetty 12 after abrupt WebSocket callback probe");
+                runSockJsClient(port, "websocket", connects, "Jetty 12 reconnect after callback probe", 1);
+            } else if (xhrAbandonmentProbe) {
+                System.out.println("Jetty 12 baseline t=0ms " + ReadinessProbe.sessions(app) + "; "
+                        + ReadinessProbe.jettyPool(server) + "; " + ReadinessProbe.threadSummary());
+                runAbnormalBatch(port, "xhr-polling", connects, xhrAbandonmentCount, app, "Jetty 12 abandoned XHR probe");
+                int elapsedSeconds = 0;
+                for (int second : java.util.Arrays.stream(new int[] { 0, 10, 30, 45, 60, observationSeconds }).distinct().sorted().toArray()) {
+                    Thread.sleep((second - elapsedSeconds) * 1000L);
+                    elapsedSeconds = second;
+                    System.out.println("Jetty 12 abandoned XHR t=" + second + "s " + ReadinessProbe.sessions(app) + "; "
+                            + ReadinessProbe.stats(app) + "; " + ReadinessProbe.jettyPool(server) + "; " + ReadinessProbe.threadSummary());
+                    if (second >= 10 && ReadinessProbe.sessionCount(app) == 0) break;
+                }
+                if (args.length > 4 && "await-idle".equals(args[4])) {
+                    Thread.sleep(65000);
+                    System.out.println("Jetty 12 abandoned XHR after idleTimeout+5s " + ReadinessProbe.sessions(app)
+                            + "; " + ReadinessProbe.jettyPool(server) + "; " + ReadinessProbe.threadSummary());
+                }
+            } else {
+                runSockJsClient(port, "websocket", connects, "Jetty 12 websocket", iterations);
+                runSockJsClient(port, "xhr-polling", connects, "Jetty 12 xhr-polling", iterations);
+            }
             dumpStats(server, app, "Jetty 12 after normal cycles");
-            if (!normalOnly) {
+            if (!normalOnly && !xhrAbandonmentProbe && !websocketAbnormalProbe && !websocketPriorProbe && !repeatedXhrProbe && !stompErrorProbe) {
                 runSockJsClient(port, "websocket", connects, "Jetty 12 websocket abrupt close", 1, "abrupt");
                 dumpStats(server, app, "Jetty 12 after WebSocket abrupt close");
                 runSockJsClient(port, "websocket", connects, "Jetty 12 reconnect after WebSocket close", 1);
                 runSockJsClient(port, "xhr-polling", connects, "Jetty 12 xhr-polling abandonment", 1, "abrupt");
                 dumpStats(server, app, "Jetty 12 after XHR abandonment");
                 runSockJsClient(port, "xhr-polling", connects, "Jetty 12 reconnect after XHR abandonment", 1);
+                ReadinessProbe.resetCallbacks();
                 runAbnormalBatch(port, "websocket", connects, 100, app, "Jetty 12 abrupt WebSocket batch");
+                System.out.println("Jetty 12 abrupt WebSocket callback probe " + ReadinessProbe.callbackSummary());
                 runAbnormalBatch(port, "xhr-polling", connects, 100, app, "Jetty 12 abandoned XHR batch");
             }
-            if (!cleanupOnly && !normalOnly) {
+            if (!cleanupOnly && !normalOnly && !xhrAbandonmentProbe && !websocketAbnormalProbe && !websocketPriorProbe && !repeatedXhrProbe && !stompErrorProbe) {
                 for (String errorCase : new String[] { "error-invalid-command", "error-missing-destination", "error-invalid-subscribe" }) {
                     runErrorProbe(port, "websocket", errorCase);
                 }
@@ -108,7 +168,7 @@ public final class Jetty12SockJsControl {
                     runErrorProbe(port, "xhr-polling", errorCase);
                 }
             }
-            for (int i = 0; i <= 9; i++) {
+            for (int i = 0; i <= (xhrAbandonmentProbe || websocketAbnormalProbe || websocketPriorProbe || repeatedXhrProbe || stompErrorProbe ? -1 : 9); i++) {
                 System.out.println("Jetty 12 cleanup t=" + (i * 5000) + "ms " + ReadinessProbe.sessions(app) + "; "
                         + ReadinessProbe.stats(app) + "; " + ReadinessProbe.jettyPool(server));
                 if (i < 4) Thread.sleep(5000);
@@ -176,9 +236,11 @@ public final class Jetty12SockJsControl {
     }
 
     private static void runErrorProbe(int port, String transport, String errorCase) throws Exception {
-        Process process = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-client-probe.js",
-                "http://localhost:" + port + "/messages", transport, "5000", "", errorCase).inheritIO().start();
-        if (!process.waitFor(Duration.ofSeconds(8).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
+        ProcessBuilder builder = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-client-probe.js",
+                "http://localhost:" + port + "/messages", transport, "25000", "", errorCase).inheritIO();
+        builder.environment().put("STOMP_ERROR_OBSERVATION_MS", "20000");
+        Process process = builder.start();
+        if (!process.waitFor(Duration.ofSeconds(25).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
             process.destroyForcibly();
             throw new AssertionError("Malformed STOMP probe timed out for " + transport);
         }
@@ -255,6 +317,15 @@ public final class Jetty12SockJsControl {
             }
             try { jetty.upgradeHttpToWebSocket(servletRequest, servletResponse, config, java.util.Collections.emptyMap()); }
             catch (Exception e) { throw new HandshakeFailureException("Jetty EE8 upgrade failed", e); }
+        }
+    }
+
+    @Configuration
+    @ComponentScan("org.nem.nis.websocket")
+    @org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker
+    static class InstrumentedNisWebsocketInitializer extends NisWebAppWebsocketInitializer {
+        @Override public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+            registration.addDecoratorFactory(ReadinessProbe.callbackRecorder());
         }
     }
 }

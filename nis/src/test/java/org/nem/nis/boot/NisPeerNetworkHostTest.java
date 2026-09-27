@@ -2,6 +2,7 @@ package org.nem.nis.boot;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.*;
@@ -18,10 +19,11 @@ import org.nem.nis.cache.*;
 import org.nem.nis.connect.*;
 import org.nem.nis.harvesting.HarvestingTask;
 import org.nem.nis.test.NisUtils;
-import org.nem.peer.connect.CommunicationMode;
+import org.nem.peer.connect.PeerConnector;
 import org.nem.peer.node.NodeCompatibilityChecker;
 import org.nem.peer.services.ChainServices;
 import org.nem.specific.deploy.NisConfiguration;
+import org.nem.nis.time.synchronization.TimeSynchronizationConnector;
 
 public class NisPeerNetworkHostTest {
 
@@ -230,6 +232,14 @@ public class NisPeerNetworkHostTest {
 	private static NisPeerNetworkHost createNetwork() {
 		final TimeProvider timeProvider = new SystemTimeProvider();
 		final AuditCollection auditCollection = new AuditCollection(10, timeProvider);
-		return createNetwork(new HttpConnectorPool(CommunicationMode.JSON, auditCollection), timeProvider, auditCollection);
+		final HttpConnectorPool pool = Mockito.mock(HttpConnectorPool.class);
+		final PeerConnector peerConnector = Mockito.mock(PeerConnector.class);
+		Mockito.when(pool.getPeerConnector(Mockito.any())).thenReturn(peerConnector);
+		Mockito.when(pool.getTimeSyncConnector(Mockito.any())).thenReturn(Mockito.mock(TimeSynchronizationConnector.class));
+		Mockito.when(peerConnector.getLocalNodeInfo(Mockito.any(), Mockito.any())).thenAnswer(invocation -> {
+			final NodeEndpoint endpoint = invocation.getArgument(1);
+			return CompletableFuture.supplyAsync(() -> endpoint, CompletableFuture.delayedExecutor(25, TimeUnit.MILLISECONDS));
+		});
+		return createNetwork(pool, timeProvider, auditCollection);
 	}
 }

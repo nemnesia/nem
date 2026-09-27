@@ -7,6 +7,7 @@ const transport = process.argv[3];
 const timeoutMs = Number(process.argv[4] || 15000);
 const expectNisMessage = process.argv[5] === 'expect-nis-message';
 const mode = process.argv[6] || 'normal';
+const errorObservationMs = Number(process.env.STOMP_ERROR_OBSERVATION_MS || 2000);
 const events = [];
 let stompSessionReady = false;
 let normalDisconnectSent = false;
@@ -74,9 +75,11 @@ sock.onmessage = (event) => {
     setTimeout(() => {
       if (errorProbeFinished) return;
       errorProbeFinished = true;
-      console.log(JSON.stringify({ requestedTransport: transport, selectedTransport, errorProbe: mode, events }));
+      console.log(JSON.stringify({ requestedTransport: transport, selectedTransport, errorProbe: mode,
+        events, result: 'observation-window-expired', observationMs: errorObservationMs,
+        socketStillOpen: sock.readyState === SockJS.OPEN }));
       process.exit(0); // preserve server-side abnormal/timeout behavior; do not send client close
-    }, 2000);
+    }, errorObservationMs);
     return;
   }
   if (event.data.startsWith('CONNECTED') && !stompSessionReady) {
