@@ -5,6 +5,9 @@ import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.lang.management.ManagementFactory;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -54,6 +57,8 @@ public final class Jetty9SockJsControl {
         boolean normalOnly = args.length > 1 && "normal-only".equals(args[1]);
         boolean xhrAbandonmentProbe = args.length > 1 && "abnormal-xhr".equals(args[1]);
         boolean websocketAbnormalProbe = args.length > 1 && "abnormal-websocket".equals(args[1]);
+        boolean websocketCloseFrameProbe = args.length > 1 && "close-frame".equals(args[1]);
+        boolean serverShutdownProbe = args.length > 1 && "server-shutdown".equals(args[1]);
         boolean repeatedXhrProbe = args.length > 1 && "abnormal-xhr-batches".equals(args[1]);
         boolean stompErrorProbe = args.length > 1 && "stomp-error".equals(args[1]);
         boolean qtpProbe = args.length > 1 && args[1].startsWith("qtp-");
@@ -118,7 +123,7 @@ public final class Jetty9SockJsControl {
                         ReadinessProbe.httpRequests(port, 100, 100, server);
                         ReadinessProbe.httpSnapshot(server, app, "http100-batch" + batch + "-after");
                     }
-                    ReadinessProbe.checkpoints(server, app, "http-postload", 30, 60, 90, 120, 180);
+                    ReadinessProbe.checkpoints(server, app, "http-postload", 30, 60, 90, 120, 180, 300);
                 }
             } else if (stompErrorProbe) {
                 String transport = args.length > 2 ? args[2] : "websocket";
@@ -127,7 +132,8 @@ public final class Jetty9SockJsControl {
                 dumpStats(server, app, "Jetty 9 after STOMP error observation");
             } else if (repeatedXhrProbe) {
                     ReadinessProbe.httpSnapshot(server, app, "xhr-batches-baseline");
-                for (int batch = 1; batch <= 3; batch++) {
+                int batches = Integer.getInteger("phase2i.abnormalXhrBatches", 3);
+                for (int batch = 1; batch <= batches; batch++) {
                     long start = System.nanoTime();
                     runAbnormalBatch(port, "xhr-polling", connects, repeatedXhrCount, server, app, "Jetty 9 abandoned XHR batch " + batch);
                     long deadline = System.nanoTime() + Duration.ofSeconds(70).toNanos();
@@ -138,12 +144,19 @@ public final class Jetty9SockJsControl {
                     ReadinessProbe.httpSnapshot(server, app, "xhr-batch" + batch + "-cleanup");
                     if (ReadinessProbe.sessionCount(app) != 0) throw new AssertionError("XHR batch did not clean up: " + batch);
                 }
-                Thread.sleep(65000);
-                System.out.println("Jetty 9 repeated XHR after idleTimeout+5s; " + ReadinessProbe.sessions(app)
-                        + "; " + ReadinessProbe.jettyPool(server) + "; " + ReadinessProbe.threadSummary());
+                ReadinessProbe.checkpoints(server, app, "xhr-post-batches-idle", 30, 60, 120, 300);
+            } else if (websocketCloseFrameProbe) {
+                ReadinessProbe.resetCallbacks();
+                runSockJsClient(port, "websocket", connects, "Jetty 9 WebSocket close-frame without STOMP DISCONNECT", 1, "close-frame");
+                Thread.sleep(7000);
+                System.out.println("Jetty 9 close-frame callbacks=" + ReadinessProbe.callbackSummary()
+                        + "; sessions=" + ReadinessProbe.sessions(app) + "; " + ReadinessProbe.jettyPool(server));
+            } else if (serverShutdownProbe) {
+                runServerShutdownProbe(port, server);
             } else if (websocketAbnormalProbe) {
                 ReadinessProbe.resetCallbacks();
                 runAbnormalBatch(port, "websocket", connects, websocketAbnormalCount, server, app, "Jetty 9 abrupt WebSocket probe");
+                waitForSockJsCleanup(app, 20000);
                 System.out.println("Jetty 9 abrupt WebSocket callback probe " + ReadinessProbe.callbackSummary());
                 dumpStats(server, app, "Jetty 9 after abrupt WebSocket callback probe");
                 runSockJsClient(port, "websocket", connects, "Jetty 9 reconnect after callback probe", 1);
@@ -169,8 +182,11 @@ public final class Jetty9SockJsControl {
                 runSockJsClient(port, "websocket", connects, "Jetty 9 websocket", iterations);
                 runSockJsClient(port, "xhr-polling", connects, "Jetty 9 xhr-polling", iterations);
             }
-            if (!qtpProbe) dumpStats(server, app, "Jetty 9 after normal cycles");
-            if (!qtpProbe && !normalOnly && !xhrAbandonmentProbe && !websocketAbnormalProbe && !repeatedXhrProbe && !stompErrorProbe) {
+            if (!qtpProbe && !serverShutdownProbe) {
+                System.out.println("Jetty 9 normal-cycle callbacks=" + ReadinessProbe.callbackSummary());
+                dumpStats(server, app, "Jetty 9 after normal cycles");
+            }
+            if (!qtpProbe && !serverShutdownProbe && !normalOnly && !xhrAbandonmentProbe && !websocketAbnormalProbe && !websocketCloseFrameProbe && !repeatedXhrProbe && !stompErrorProbe) {
                 runSockJsClient(port, "websocket", connects, "Jetty 9 websocket abrupt close", 1, "abrupt");
                 dumpStats(server, app, "Jetty 9 after WebSocket abrupt close");
                 runSockJsClient(port, "websocket", connects, "Jetty 9 reconnect after WebSocket close", 1);
@@ -182,7 +198,7 @@ public final class Jetty9SockJsControl {
                 System.out.println("Jetty 9 abrupt WebSocket callback probe " + ReadinessProbe.callbackSummary());
                 runAbnormalBatch(port, "xhr-polling", connects, 100, server, app, "Jetty 9 abandoned XHR batch");
             }
-            if (!qtpProbe && !cleanupOnly && !normalOnly && !xhrAbandonmentProbe && !websocketAbnormalProbe && !repeatedXhrProbe && !stompErrorProbe) {
+            if (!qtpProbe && !serverShutdownProbe && !cleanupOnly && !normalOnly && !xhrAbandonmentProbe && !websocketAbnormalProbe && !websocketCloseFrameProbe && !repeatedXhrProbe && !stompErrorProbe) {
                 for (String errorCase : new String[] { "error-invalid-command", "error-missing-destination", "error-invalid-subscribe" }) {
                     runErrorProbe(port, "websocket", errorCase);
                 }
@@ -191,13 +207,13 @@ public final class Jetty9SockJsControl {
                     runErrorProbe(port, "xhr-polling", errorCase);
                 }
             }
-            for (int i = 0; i <= (qtpProbe || xhrAbandonmentProbe || websocketAbnormalProbe || repeatedXhrProbe || stompErrorProbe ? -1 : 9); i++) {
+            for (int i = 0; i <= (qtpProbe || serverShutdownProbe || xhrAbandonmentProbe || websocketAbnormalProbe || websocketCloseFrameProbe || repeatedXhrProbe || stompErrorProbe ? -1 : 9); i++) {
                 System.out.println("Jetty 9 cleanup t=" + (i * 5000) + "ms " + ReadinessProbe.sessions(app) + "; "
                         + ReadinessProbe.stats(app) + "; " + ReadinessProbe.jettyPool(server));
                 if (i < 4) Thread.sleep(5000);
             }
-            if (!qtpProbe) System.out.println("Jetty 9 raw handshake no-origin=" + ReadinessProbe.rawHandshake(port, "/messages/000/phase2i-j-no-origin/websocket", null, "valid"));
-            if (!qtpProbe) {
+            if (!qtpProbe && !serverShutdownProbe) System.out.println("Jetty 9 raw handshake no-origin=" + ReadinessProbe.rawHandshake(port, "/messages/000/phase2i-j-no-origin/websocket", null, "valid"));
+            if (!qtpProbe && !serverShutdownProbe) {
             System.out.println("Jetty 9 raw handshake same-origin=" + ReadinessProbe.rawHandshake(port, "/messages/000/phase2i-j-same-origin/websocket", "http://localhost:" + port, "valid"));
             System.out.println("Jetty 9 raw handshake unrelated-origin=" + ReadinessProbe.rawHandshake(port, "/messages/000/phase2i-j-unrelated-origin/websocket", "https://otherwise-unmatched.invalid", "valid"));
             System.out.println("Jetty 9 raw handshake missing-upgrade=" + ReadinessProbe.rawHandshake(port, "/messages/000/phase2i-j-no-upgrade/websocket", null, "missing-upgrade"));
@@ -213,6 +229,38 @@ public final class Jetty9SockJsControl {
             server.join();
             app.close();
         }
+    }
+
+    private static void runServerShutdownProbe(int port, Server server) throws Exception {
+        ReadinessProbe.resetCallbacks();
+        Process process = new ProcessBuilder("node", "docs/modernization/phase-2i-h-poc/sockjs-client-probe.js",
+                "http://localhost:" + port + "/messages", "websocket", "20000", "", "hold")
+                .redirectErrorStream(true).start();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            long deadline = System.nanoTime() + Duration.ofSeconds(25).toNanos();
+            boolean connected = false;
+            while (System.nanoTime() < deadline && null != (line = reader.readLine())) {
+                System.out.println("server-shutdown-client " + line);
+                if (line.contains("HOLD_CONNECTED")) { connected = true; break; }
+            }
+            if (!connected) throw new AssertionError("client never reached CONNECTED before server shutdown");
+            System.out.println("server-shutdown stopping Jetty 9 with live WebSocket");
+            server.stop();
+            server.join();
+            while (null != (line = reader.readLine())) System.out.println("server-shutdown-client " + line);
+        }
+        if (!process.waitFor(15, TimeUnit.SECONDS)) {
+            process.destroyForcibly();
+            throw new AssertionError("SockJS client remained alive after server shutdown");
+        }
+        System.out.println("Jetty 9 server-shutdown callbacks=" + ReadinessProbe.callbackSummary()
+                + "; clientExit=" + process.exitValue());
+    }
+
+    private static void waitForSockJsCleanup(AnnotationConfigWebApplicationContext app, long timeoutMs) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
+        while (ReadinessProbe.sessionCount(app) != 0 && System.nanoTime() < deadline) Thread.sleep(100);
     }
 
     private static void runSockJsClient(int port, String transport, AtomicInteger connects, String label, int iterations) throws Exception {

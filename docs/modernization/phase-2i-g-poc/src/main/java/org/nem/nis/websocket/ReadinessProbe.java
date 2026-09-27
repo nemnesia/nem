@@ -112,12 +112,14 @@ final class ReadinessProbe {
         return delegate -> new WebSocketHandlerDecorator(delegate) {
             @Override public void handleTransportError(WebSocketSession session, Throwable error) throws Exception {
                 TRANSPORT_ERROR_CALLBACKS.incrementAndGet();
-                record(session, "transportError:" + throwable(error));
+                record(session, "transportError@" + System.nanoTime() + " thread=" + Thread.currentThread().getName()
+                        + ":" + throwable(error) + ";callbackStack=" + stack(error));
                 super.handleTransportError(session, error);
             }
 
             @Override public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-                record(session, "closed:" + status.getCode() + ":" + status.getReason());
+                record(session, "closed@" + System.nanoTime() + " thread=" + Thread.currentThread().getName()
+                        + ":" + status.getCode() + ":" + status.getReason());
                 super.afterConnectionClosed(session, status);
             }
         };
@@ -133,16 +135,21 @@ final class ReadinessProbe {
         return error.getClass().getName() + ":" + error.getMessage() + ";root=" + root.getClass().getName() + ":" + root.getMessage();
     }
 
+    private static String stack(Throwable error) {
+        return java.util.Arrays.stream(error.getStackTrace()).limit(8).map(StackTraceElement::toString)
+                .collect(java.util.stream.Collectors.joining(" <- "));
+    }
+
     static void resetCallbacks() {
         CALLBACKS.clear();
         TRANSPORT_ERROR_CALLBACKS.set(0);
     }
 
     static String callbackSummary() {
-        List<String> examples = CALLBACKS.entrySet().stream().filter(entry -> entry.getValue().stream().anyMatch(v -> v.startsWith("transportError")))
+        List<String> examples = CALLBACKS.entrySet().stream().filter(entry -> entry.getValue().stream().anyMatch(v -> v.startsWith("transportError@")))
                 .limit(3).map(entry -> entry.getKey() + "=" + entry.getValue()).toList();
-        long closed = CALLBACKS.values().stream().filter(events -> events.stream().anyMatch(v -> v.startsWith("closed:"))).count();
-        List<String> closeExamples = CALLBACKS.entrySet().stream().filter(entry -> entry.getValue().stream().anyMatch(v -> v.startsWith("closed:")))
+        long closed = CALLBACKS.values().stream().filter(events -> events.stream().anyMatch(v -> v.startsWith("closed@"))).count();
+        List<String> closeExamples = CALLBACKS.entrySet().stream().filter(entry -> entry.getValue().stream().anyMatch(v -> v.startsWith("closed@")))
                 .limit(3).map(entry -> entry.getKey() + "=" + entry.getValue()).toList();
         return "handlerTransportErrorCallbacks=" + TRANSPORT_ERROR_CALLBACKS.get() + "; sessionsWithCallbacks=" + CALLBACKS.size()
                 + "; afterConnectionClosedCallbacks=" + closed + "; errorExamples=" + examples + "; closeExamples=" + closeExamples;

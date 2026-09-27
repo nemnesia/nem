@@ -67,6 +67,15 @@ sock.onopen = () => {
 
 sock.onmessage = (event) => {
   events.push({ type: 'message', data: event.data });
+  if (mode === 'close-frame' && event.data.startsWith('CONNECTED')) {
+    console.log('SOCKJS_CLOSE_FRAME after CONNECTED; no STOMP DISCONNECT');
+    sock.close(1000, 'probe close frame');
+    return;
+  }
+  if (mode === 'hold' && event.data.startsWith('CONNECTED')) {
+    console.log('HOLD_CONNECTED; waiting for server shutdown');
+    return;
+  }
   if (mode === 'abrupt' && event.data.startsWith('CONNECTED')) {
     console.log('ABRUPT_SOCKET_CLOSE without SockJS close or STOMP DISCONNECT');
     process.exit(0);
