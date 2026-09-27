@@ -23,6 +23,6 @@ NODE_PATH=/tmp/nem-phase2i-sockjs/node_modules mvn -B compile \
 The Node client scenarios reuse the committed Phase 2I-H standard SockJS
 client probes. The harness binds ephemeral loopback ports and verifies the
 production server bootstrappers, REST heartbeat/404, `/w/messages/info`,
-WebSocket and forced XHR polling STOMP exchanges, normal/abrupt cleanup, and
-QTP shutdown. The mocked collaborators make this a production-bootstrap
+WebSocket and forced XHR polling STOMP exchanges, normal/abrupt cleanup, QTP
+and active-request statistics, and clean shutdown. The mocked collaborators make this a production-bootstrap
 integration smoke, not a full database-backed NIS node test.

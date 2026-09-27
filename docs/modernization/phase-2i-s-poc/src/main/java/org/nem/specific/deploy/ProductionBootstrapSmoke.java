@@ -43,6 +43,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupp
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee8.servlet.FilterHolder;
@@ -100,6 +101,9 @@ public final class ProductionBootstrapSmoke {
     @SuppressWarnings("removal")
     private static void runWebsocket(NisConfiguration configuration, AnnotationConfigApplicationContext parent) throws Exception {
         Server server = new NemWebsockServerBootstrapper(parent, configuration, new SmokePolicy(NisWebAppWebsocketInitializer.class)).boot();
+        final StatisticsHandler statistics = new StatisticsHandler();
+        statistics.setHandler(server.getHandler());
+        server.setHandler(statistics);
         try {
             server.start();
             int port = localPort(server);
@@ -204,7 +208,8 @@ public final class ProductionBootstrapSmoke {
         System.out.println("QTP stage=" + stage + " total=" + pool.getThreads() + " busy=" + pool.getBusyThreads()
                 + " idle=" + pool.getIdleThreads() + " queue=" + pool.getQueueSize() + " min=" + pool.getMinThreads()
                 + " max=" + pool.getMaxThreads() + " idleTimeoutMs=" + pool.getIdleTimeout()
-                + " reservedCurrent=" + pool.getCurrentReservedThreads() + " reservedAvailable=" + pool.getAvailableReservedThreads());
+                + " reservedCurrent=" + pool.getCurrentReservedThreads() + " reservedAvailable=" + pool.getAvailableReservedThreads()
+                + " activeRequests=" + server.getBean(StatisticsHandler.class).getRequestsActive());
     }
 
     private static int localPort(Server server) {
