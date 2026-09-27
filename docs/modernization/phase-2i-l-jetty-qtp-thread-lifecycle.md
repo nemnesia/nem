@@ -99,7 +99,14 @@ Java 17 local `mvn -B clean test`: **BUILD SUCCESS**, 6,220 tests, 0 failures, 0
 
 Java 25 `mvn -B clean test`: 初回は `AsyncTimerTest.visitorIsNotifiedOfStops` が1件失敗（2,361実行時点）。同じclean testを再実行し**BUILD SUCCESS**, 6,220 tests, 0 failures/errors/skips (`/tmp/phase2i-l-root-j25-test-retry.log`; 2m04s)。失敗時のmock履歴はstart/completeと次のdelay通知までで`notifyStop()`が未到達。testは6ms待機後にtimer closeし、さらに9ms待つ短い時間ベースassertionで、実装変更やskipは行わず、再試行結果を採用し初回failureはflaky/transientとして残す。
 
-Java 25 `mvn -B clean package`: **BUILD SUCCESS**, 6,220 tests, 0 failures, 0 errors, 0 skipped (`/tmp/phase2i-l-root-j25-package.log`; 2m05s)。Java versionsはOpenJDK 17.0.20.1、25.0.4.1、Maven 3.8.7。Hosted Java 17/25 run IDはpush後に追記する。
+Java 25 `mvn -B clean package`: **BUILD SUCCESS**, 6,220 tests, 0 failures, 0 errors, 0 skipped (`/tmp/phase2i-l-root-j25-package.log`; 2m05s)。Java versionsはOpenJDK 17.0.20.1、25.0.4.1、Maven 3.8.7。
+
+Hosted CIはこのPhaseの計測コードcommit `8c22a37becdf432f63f9ff54181066313d3ff44b`で両方成功。
+
+| Workflow | Run | Result |
+| --- | --- | --- |
+| Java 17 Baseline | [36287686205](https://github.com/nemnesia/nem/actions/runs/36287686205) | clean test・package成功。Temurin 17.0.20.1 / Maven 3.9.16 |
+| Java 25 Compatibility | [36287686219](https://github.com/nemnesia/nem/actions/runs/36287686219) | clean test・package成功。Temurin 25.0.4.1 / Maven 3.9.16 |
 
 Jetty 9/12 test-only QTP idle baseline, simple HTTP load, short-idleTimeout diagnosis, SockJS 100×3 abnormal XHR probesはすべて実行した。既知のJava 25 `AsyncTimerTest.visitorIsNotifiedOfSuccessfulCompletions` transient failureはPhase 2I-Kで一度記録済み。本Phaseでは再現しておらず、修正していない。
 
@@ -138,3 +145,5 @@ Jenkins Java 17 image/shared-library blockerは別の外部制約として維持
 - `docs/modernization/phase-2i-l-jetty-qtp-thread-lifecycle.md`
 
 **結論: QTP観測ではJetty 12固有のunbounded thread/resource growthは見つからず、既存のJetty 9/12 WebSocket/SockJS parity evidenceと合わせ、次の独立Phaseでproduction Jetty 12 migrationを開始できるreadinessと判定する。** 本Phaseではmigrationを行っていない。
+
+計測・ローカル検証結果を含む本記録は、GitHub-hosted Java 17 / Java 25 workflow成功を追記したfollow-up documentation commitで確定する。計測/実装結果そのものは上記runのhead commit `8c22a37becdf432f63f9ff54181066313d3ff44b`で検証済み。
