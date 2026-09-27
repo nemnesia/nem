@@ -2,7 +2,7 @@
 
 ## Status
 
-**PARTIAL — WireMock 1.58 was replaced with stable WireMock 3.x and local Java 17 / 25 verification passed; hosted Java 17 remains unresolved.**
+**COMPLETE — WireMock 1.58 was replaced with stable WireMock 3.x; local and final hosted Java 17 / 25 verification passed.**
 
 This is a test-only modernization. Production Java code, production dependencies, protocol behavior, persistence, and runtime configuration are unchanged. Phase 2F Mainnet / Testnet real-database compatibility remains BLOCKED pending provenance-verified database artifacts.
 
@@ -92,7 +92,14 @@ The documentation commit `3282945d5b99fd041f3c0985a81be9f6bb86da74` triggered an
 | Java 17 Baseline | [36349091858](https://github.com/nemnesia/nem/actions/runs/36349091858) | **FAIL** | `Run clean unit tests` exited 1; package step skipped. The check annotation again only reports exit code 1 and job-log access returned HTTP 403. |
 | Java 25 Compatibility | [36349091861](https://github.com/nemnesia/nem/actions/runs/36349091861) | **PASS** | Workflow completed successfully. |
 
-The Java 17 failure is unresolved and is not attributed to WireMock based on the available evidence: all Java 17 local full-suite tests and package passed, while both hosted job logs needed to identify the failing test are inaccessible. This leaves the hosted-CI acceptance criterion open and the phase **PARTIAL** pending an authorized log review or a successful hosted Java 17 run.
+After those two Java 17 failures, the latest run on commit `af78d1d3954f0bc06b9f807aeb86997cf2f987bb` passed both test and package steps on both JDKs:
+
+| Workflow | Run | Result |
+|---|---:|---|
+| Java 17 Baseline | [36349353842](https://github.com/nemnesia/nem/actions/runs/36349353842) | **PASS** — clean unit tests and package |
+| Java 25 Compatibility | [36349353913](https://github.com/nemnesia/nem/actions/runs/36349353913) | **PASS** — clean unit tests and package |
+
+The two earlier Java 17 failures remain unexplained because both job-log requests returned HTTP 403 and the annotations contained only exit code 1. The successful subsequent Java 17 run on the same code resolved the hosted validation gate; no cause is inferred for those transient failures. The final documentation commit's hosted results are recorded in the task report.
 
 ## Remaining limitations
 
