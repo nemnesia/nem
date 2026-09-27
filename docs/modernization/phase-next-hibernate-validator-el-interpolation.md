@@ -53,7 +53,8 @@ The production validation messages currently use built-in/default behavior only;
 | Java 25 focused compatibility test | 3 tests passed, 0 failures/errors/skips |
 | Java 25 full `mvn -B clean test` with loopback permission | Passed: 6,224 tests, 0 failures/errors/skips |
 | Java 25 full `mvn -B clean package` with loopback permission | Passed: full tests and package, 0 failures/errors/skips |
-| Hosted Java 17 / Java 25 CI | Pending final commit |
+| Hosted Java 17 Baseline | Run `36318616273` on implementation commit `a9ecdd66e1e697711ac91f922017812fb32ea554`: success |
+| Hosted Java 25 Compatibility | Run `36318616258` on implementation commit `a9ecdd66e1e697711ac91f922017812fb32ea554`: success |
 
 The first loopback-enabled Java 17 `clean test` had one unrelated failure in `PoiImportanceCalculatorTest.spamLinksDoNotHaveABigImpactOnImportance`; its isolated retry passed, and both subsequent Java 17 full `clean package` and a second full `clean test` passed. The first sandboxed test attempt's WireMock bind errors were environmental and did not recur with loopback access. The suite emits expected peer/network log messages, but the completed Java 17/25 runs had no failed tests.
 
@@ -72,4 +73,4 @@ Runtime dependency tree after the change resolves Spring 5.3.39, Hibernate ORM 5
 
 - Current production constraints do not exercise EL expressions; the test proves the default Hibernate Validator EL feature itself.
 - This phase does not validate Mainnet/Testnet databases. The real DB compatibility gate remains blocked until provenance-verified Mainnet and Testnet artifacts are available.
-- Final commit, push, and hosted CI identifiers are added to the task report after validation completes.
+- The implementation commit was pushed; hosted checks for both configured JDK workflows passed. This phase’s validation commit is `a9ecdd66e1e697711ac91f922017812fb32ea554`.
