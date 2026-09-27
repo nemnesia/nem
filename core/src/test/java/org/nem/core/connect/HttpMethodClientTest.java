@@ -2,6 +2,7 @@ package org.nem.core.connect;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.*;
+import com.github.tomakehurst.wiremock.matching.UrlPattern;
 import java.net.URL;
 import java.util.concurrent.CancellationException;
 import java.util.function.*;
@@ -151,7 +152,6 @@ public class HttpMethodClientTest {
 			this.runTestWithTimeoutService((mockService, requestUrl) -> {
 				// Arrange:
 				// - set a delay in request processing to simulate a socket timeout
-				mockService.addRequestProcessingDelay(10000);
 				final HttpMethodClient<Deserializer> client = new HttpMethodClient<>(GOOD_TIMEOUT, 500, GOOD_TIMEOUT);
 
 				// Act:
@@ -188,16 +188,17 @@ public class HttpMethodClientTest {
 			}
 		}
 
-		private static MappingBuilder createJsonTestEndpointStub(final Function<UrlMatchingStrategy, MappingBuilder> createBuilder) {
+		private static MappingBuilder createJsonTestEndpointStub(final Function<UrlPattern, MappingBuilder> createBuilder) {
 			return createEndpointStub(createBuilder, TEST_JSON_ENDPOINT_URI,
 					"{ \"test\": \"org.nem.core.connect" + ".HttpMethodClientTest\", \"one\": \"two\" }", 200);
 		}
 
-		private static MappingBuilder createTimeoutStub(final Function<UrlMatchingStrategy, MappingBuilder> createBuilder) {
-			return createEndpointStub(createBuilder, TIMEOUT_ENDPOINT_URI, null, 200);
+		private static MappingBuilder createTimeoutStub(final Function<UrlPattern, MappingBuilder> createBuilder) {
+			return createBuilder.apply(WireMock.urlEqualTo(TIMEOUT_ENDPOINT_URI)).willReturn(
+					WireMock.aResponse().withHeader("content-type", "application/json").withStatus(200).withFixedDelay(10000));
 		}
 
-		private static MappingBuilder createEndpointStub(final Function<UrlMatchingStrategy, MappingBuilder> createBuilder, String uri,
+		private static MappingBuilder createEndpointStub(final Function<UrlPattern, MappingBuilder> createBuilder, String uri,
 				String body, int status) {
 			ResponseDefinitionBuilder responseDefinitionBuilder = WireMock.aResponse().withHeader("content-type", "application/json")
 					.withStatus(status);
