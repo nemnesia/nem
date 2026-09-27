@@ -187,7 +187,7 @@ Stop it using the reviewed local shutdown mechanism and record the shutdown resu
 - Tooling tests: `(cd tools && python3 -m unittest -v test_phase2f_db_validation.py)` — 21 tests passed.
 - Java 17 JDK `17.0.20.1`, Maven `3.8.7` available.
 - Both Java utilities compile with Java 17. The fingerprint utility scanned a disposable H2 1.4.200 and its H2 2.2.220 `FROM_1X` imported 5,000-block synthetic DB copy; fingerprints compared `equivalent: true` with no differing fields. This is a tooling smoke test only, not Mainnet/Testnet chain DB validation. Flyway audit was also pointed at a deliberately minimal throwaway schema lacking a valid Flyway history table; Flyway reported that the history table was absent. That incomplete stub is not a Flyway compatibility result and did not mutate any candidate artifact.
-- No Maven production code/build configuration was changed; full repository test/package and hosted CI were not required for this documentation/tool-only work. No current workflow artifact contains real DBs.
+- No Maven production code/build configuration was changed. Hosted CI nevertheless ran the repository Java 17 clean-test/package workflow (run `36312940555`, success) and Java 25 compatibility workflow (run `36312940541`, success) for tooling commit `b11c9257fdc5d72d1b4db48428d8c270a510eafd`. These runs contain no real DB artifact and do not validate Mainnet/Testnet compatibility. No local full Maven test/package was run because changes are limited to standalone tooling/documentation; the workflow did run the standard repository suite and package.
 - No Mainnet or representative Testnet DB passed intake; their actual compatibility status is untested and blocked.
 
 ## Remaining gate and artifact owner action
