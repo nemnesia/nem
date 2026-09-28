@@ -6,11 +6,25 @@ import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.*;
 import org.junit.*;
 import org.nem.core.test.Utils;
+import org.nem.core.utils.HexEncoder;
+import org.nem.core.utils.StringEncoder;
 
 public class HashesTest {
 	private static final HashTester SHA3_256_TESTER = new HashTester(Hashes::sha3_256, 32);
 	private static final HashTester SHA3_512_TESTER = new HashTester(Hashes::sha3_512, 64);
 	private static final HashTester RIPEMD160_TESTER = new HashTester(Hashes::ripemd160, 20);
+
+	@Test
+	public void sha3_256MatchesKnownKeccakVector() {
+		MatcherAssert.assertThat(HexEncoder.getString(Hashes.sha3_256(StringEncoder.getBytes("abc"))),
+				IsEqual.equalTo("4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45"));
+	}
+
+	@Test
+	public void ripemd160MatchesKnownVector() {
+		MatcherAssert.assertThat(HexEncoder.getString(Hashes.ripemd160(StringEncoder.getBytes("abc"))),
+				IsEqual.equalTo("8eb208f7e05d987a9b044a8e98c6b087f15a0bfc"));
+	}
 
 	// region sha3_256
 
