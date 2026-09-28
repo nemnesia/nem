@@ -124,7 +124,8 @@ The class refuses a runtime data directory inside the repository or an auto-boot
 - Probe compilation: `javac` against the built module classes and `nis/target/libs/*` succeeded; the actual class in `tools/Phase2fNisRuntimeProbe.java` was compiled and run on both JDKs.
 - Existing Phase 2F tooling unit tests: `PYTHONPATH=tools python3 -m unittest -v tools/test_phase2f_db_validation.py` — 21 passed.
 - The first unit-test invocation without `PYTHONPATH=tools` failed only to import the sibling tooling module; rerunning with the repository's tool directory on `PYTHONPATH` passed all 21 tests.
-- Full `mvn clean test` / `mvn clean package` and hosted CI were not run: changes are an opt-in diagnostic tool and documentation only, with no production Java, Maven, dependency, or normal test lifecycle change. Runtime behavior was directly exercised by the tool on Java 17 and 25.
+- Local full `mvn clean test` / `mvn clean package` were not run because changes are an opt-in diagnostic tool and documentation only, with no production Java, Maven, dependency, or normal test lifecycle change. Runtime behavior was directly exercised by the tool on Java 17 and 25.
+- Hosted CI for tool-bearing commit `9f7c3b8ad5aa0f63da56f4e2f0314bfd77dbf5f8`: Java 17 Baseline run `36429644382` — success (clean unit tests and package); Java 25 Compatibility run `36429643592` — success (clean unit tests and package).
 
 ## Remaining gates
 
