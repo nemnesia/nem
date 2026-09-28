@@ -9,7 +9,8 @@
 | Repository / branch | `nemnesia/nem` / `agent/nis-phase0-baseline` |
 | Requested starting HEAD | `0a99c46b221f90cc51ce3da0d497527c8d9bfcef` |
 | Actual starting HEAD | `0a99c46b221f90cc51ce3da0d497527c8d9bfcef` |
-| Final HEAD | Recorded by the commit containing this document and validator |
+| Evidence-contract implementation commit | `660743df746c04507b92dd942a1e4b8a222282ec` |
+| Final HEAD | This record's final documentation commit; exact SHA is reported in the phase closeout |
 | Pre-existing worktree change | `.gitignore` adds `legacy/`; deliberately left unstaged and unchanged |
 
 The supplied DBs were not opened by H2, Flyway, or NIS during this task. Their identities and runtime compatibility remain as documented in the preceding Phase 2F records.
@@ -19,6 +20,17 @@ The supplied DBs were not opened by H2, Flyway, or NIS during this task. Their i
 Reviewed the existing Phase 2F readiness, compatibility, artifact follow-up, and provenance-closure documents, plus `tools/phase2f_db_validation.py` and `tools/test_phase2f_db_validation.py`. The prior v1 manifest/intake validator checks file inventory and internal network/genesis/height/tip claims, but its operator and quiescence fields were plain assertions. They do not authenticate who made those assertions. v1 validation is now explicitly reported as intake-only and unauthenticated.
 
 The preceding evidence establishes useful corroboration and prior runtime results. A public node agreeing with a candidate checkpoint does not establish where the local file came from or how it was captured. Runtime readability, genesis, linkage, and filesystem timestamps likewise do not prove source ownership or quiescence.
+
+### Provenance evidence inventory
+
+| Classification | Evidence found |
+|---|---|
+| **Verified in this task** | Current candidate file sizes and SHA-256 values match the prior recorded values. `git log --all -- legacy/nis5_mainnet.mv.db legacy/nis5_testnet.mv.db` has no artifact commits; the DBs are ignored by the pre-existing `.gitignore` change. The hashes occur in Phase 2F documents, not in an independently authenticated acquisition record. |
+| **Corroborating but insufficient** | Prior Phase 2F records document network marker/genesis/runtime validation and historical public-node checkpoint agreement. These corroborate content but do not identify source operator or capture process. Filesystem birth/mtime values are recorded in the prior provenance-closure note and are not trusted source evidence. |
+| **Unverified** | External source operator/organization, source host/node identity, original DB path, acquisition sequence, source-side transfer hashes, NIS/H2 stopped state, snapshot consistency and quiescence. |
+| **Unavailable** | Authenticated operator manifest/signature, source identity/acquisition logs, shutdown/H2 close or storage snapshot records, independently pinned checkpoint signer identity/key, and any backup/release artifact record linking the candidates to a known operator or system. |
+
+The user-provided fact that the files were placed under `legacy/` is known context only; it does not establish any of the unverified source or snapshot claims.
 
 ## Required v2 evidence contract
 
@@ -95,7 +107,9 @@ Prior recorded tips remain: Mainnet height 2,001, `dcda75bc2fd65096ad3f3f4b5a104
 
 ## Tests and remaining requirements
 
-The `tools/test_phase2f_db_validation.py` suite now covers signed positive evidence and rejection of missing provenance, missing quiescence, artifact hash/size mismatch, a different source DB path, wrong network, checkpoint mismatch, unauthenticated/unpinned signer, operator/checkpoint signer reuse, malformed/tampered manifest/evidence, timestamp ordering, and Mainnet/Testnet pair confusion. Test fixtures use disposable fake bytes and temporary keys; they are harness tests only, not NIS DB evidence.
+The `tools/test_phase2f_db_validation.py` suite passed **40/40** tests. It covers signed positive evidence and rejection of missing provenance, missing quiescence, artifact hash/size mismatch, a different source DB path, wrong network, checkpoint mismatch, unauthenticated/unpinned signer, operator/checkpoint signer reuse, malformed/tampered manifest/evidence, timestamp ordering, and Mainnet/Testnet pair confusion. Test fixtures use disposable fake bytes and temporary keys; they are harness tests only, not NIS DB evidence. `py_compile` and `git diff --check` also passed. Maven tests were not run because changes are isolated to the Python evidence tooling and documentation; no Java/POM/runtime code changed.
+
+Hosted CI on the implementation commit `660743df746c04507b92dd942a1e4b8a222282ec` passed both workflows: Java 17 Baseline run `36484219310` (clean test and package) and Java 25 Compatibility run `36484219275` (clean test and package).
 
 Still required from external artifact owners, **for each network independently**:
 
