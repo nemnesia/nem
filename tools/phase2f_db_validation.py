@@ -209,6 +209,338 @@ def load_manifest(path: Path) -> dict[str, Any]:
     return value
 
 
+def _load_json_file(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as ex:
+        raise ValidationError(f"cannot read {label} JSON: {ex}") from ex
+    _require(isinstance(value, dict), f"{label} root must be a JSON object")
+    return value
+
+
+def _trusted_file(base: Path, relative: Any, label: str) -> Path:
+    _require(isinstance(relative, str) and bool(relative.strip()), f"{label} path is required")
+    rel = Path(relative)
+    _require(not rel.is_absolute() and ".." not in rel.parts, f"unsafe {label} path")
+    candidate = base / rel
+    current = base
+    for part in rel.parts:
+        current = current / part
+        _require(not current.is_symlink(), f"{label} must not traverse symlinks")
+    result = candidate.resolve(strict=True)
+    _require(_inside(result, base.resolve(strict=True)), f"{label} must remain inside its evidence bundle")
+    _require(result.is_file(), f"{label} must be a file")
+    return result
+
+
+def _public_key_fingerprint(public_key: Path) -> str:
+    try:
+        result = subprocess.run(
+            ["openssl", "pkey", "-pubin", "-in", str(public_key), "-outform", "DER"],
+            check=True, capture_output=True)
+    except (OSError, subprocess.CalledProcessError) as ex:
+        raise ValidationError(f"cannot read trusted Ed25519 public key: {ex}") from ex
+    return hashlib.sha256(result.stdout).hexdigest()
+
+
+def _verify_ed25519(public_key: Path, payload: Path, signature: Path, label: str) -> None:
+    _require(signature.stat().st_size == 64, f"{label} Ed25519 signature must be exactly 64 bytes")
+    try:
+        subprocess.run(
+            ["openssl", "pkeyutl", "-verify", "-pubin", "-inkey", str(public_key),
+             "-rawin", "-in", str(payload), "-sigfile", str(signature)],
+            check=True, capture_output=True)
+    except (OSError, subprocess.CalledProcessError) as ex:
+        raise ValidationError(f"{label} Ed25519 signature verification failed") from ex
+
+
+def _evidence_map(manifest: dict[str, Any], bundle_dir: Path) -> dict[str, tuple[dict[str, Any], Path]]:
+    entries = manifest.get("evidence_files")
+    _require(isinstance(entries, list) and bool(entries), "evidence_files must be a non-empty array")
+    result: dict[str, tuple[dict[str, Any], Path]] = {}
+    for item in entries:
+        _require(isinstance(item, dict), "each evidence_files entry must be an object")
+        evidence_id = item.get("id")
+        _require(isinstance(evidence_id, str) and bool(evidence_id.strip()), "evidence file id is required")
+        _require(evidence_id not in result, f"duplicate evidence file id: {evidence_id}")
+        path = _trusted_file(bundle_dir, item.get("path"), f"evidence {evidence_id}")
+        _require(isinstance(item.get("kind"), str) and bool(item["kind"].strip()),
+                 f"evidence {evidence_id} kind is required")
+        _require(isinstance(item.get("size_bytes"), int) and not isinstance(item["size_bytes"], bool)
+                 and item["size_bytes"] > 0, f"invalid evidence size for {evidence_id}")
+        _require(path.stat().st_size == item["size_bytes"], f"evidence size mismatch for {evidence_id}")
+        _require(_is_hash(item.get("sha256")), f"invalid evidence SHA-256 for {evidence_id}")
+        _require(_sha256(path) == item["sha256"].lower(), f"evidence SHA-256 mismatch for {evidence_id}")
+        result[evidence_id] = (item, path)
+    return result
+
+
+def validate_evidence_manifest(
+        manifest_path: Path,
+        artifact_dir: Path,
+        operator_public_key: Path,
+        trusted_operator_id: str,
+        checkpoint_public_key: Path,
+        trusted_checkpoint_signer_id: str) -> dict[str, Any]:
+    """Validate a v2 hash-bound, dual-signed artifact evidence bundle.
+
+    Trust is anchored by public keys supplied out-of-band, not keys embedded in
+    the submitted bundle. The operator signs the exact manifest bytes; an
+    independently trusted checkpoint signer signs the checkpoint record bytes.
+    """
+    bundle_dir = manifest_path.resolve(strict=True).parent
+    _require(not _inside(bundle_dir, REPO_ROOT), "evidence bundle must be outside the Git repository")
+    _require(not manifest_path.is_symlink(), "manifest must not be a symlink")
+    manifest_bytes = manifest_path.read_bytes()
+    manifest = load_manifest(manifest_path)
+    _require(manifest.get("manifest_version") == 2, "authenticated evidence requires manifest_version 2")
+
+    authentication = manifest.get("authentication")
+    _require(isinstance(authentication, dict), "authentication object is required")
+    _require(authentication.get("scheme") == "ed25519-detached-manifest-v1",
+             "unsupported or unauthenticated operator evidence")
+    _require(authentication.get("signer_id") == trusted_operator_id,
+             "operator signer identity does not match the externally pinned identity")
+    expected_operator_key = _public_key_fingerprint(operator_public_key)
+    _require(authentication.get("public_key_sha256") == expected_operator_key,
+             "operator public key fingerprint does not match the externally pinned key")
+    operator_signature = _trusted_file(bundle_dir, authentication.get("signature_path"), "operator signature")
+    _require(operator_signature != manifest_path.resolve(strict=True),
+             "operator signature must be detached from the manifest")
+    # The detached signature covers the manifest exactly as delivered, including
+    # the signature metadata and all artifact/evidence hashes.
+    try:
+        subprocess.run(
+            ["openssl", "pkeyutl", "-verify", "-pubin", "-inkey", str(operator_public_key),
+             "-rawin", "-in", str(manifest_path), "-sigfile", str(operator_signature)],
+            check=True, capture_output=True)
+    except (OSError, subprocess.CalledProcessError) as ex:
+        raise ValidationError("operator Ed25519 manifest signature verification failed") from ex
+
+    _require(isinstance(trusted_checkpoint_signer_id, str) and bool(trusted_checkpoint_signer_id.strip()),
+             "independently pinned checkpoint signer identity is required")
+    _require(trusted_checkpoint_signer_id != trusted_operator_id,
+             "operator and checkpoint signer must be distinct trust identities")
+    checkpoint_key_fingerprint = _public_key_fingerprint(checkpoint_public_key)
+    evidence = _evidence_map(manifest, bundle_dir)
+
+    # Reuse the existing v1 structural/file inventory validation, but v1 alone
+    # is never an authenticated trust decision.
+    structural_manifest = dict(manifest)
+    structural_manifest["manifest_version"] = 1
+    artifact_inventory_before = inventory_artifact(artifact_dir)
+    structural = validate_manifest(structural_manifest, artifact_dir, require_identity=True)
+    artifact_inventory_after = inventory_artifact(artifact_dir)
+    _require(artifact_inventory_before == artifact_inventory_after,
+             "original artifact changed while evidence was being evaluated")
+    _require(isinstance(manifest.get("artifact_id"), str), "artifact_id is required")
+    _require(any(item["path"] == manifest["artifact_id"] and
+                 item["path"].lower().endswith((".mv.db", ".h2.db", ".data.db"))
+                 for item in structural["files"]),
+             "artifact_id must identify a listed primary H2 database file")
+    source = manifest.get("source")
+    _require(isinstance(source, dict), "source object is required")
+    for key in ("organization", "operator_id", "system_id", "node_id", "database_path", "nis_version", "h2_version"):
+        _require(isinstance(source.get(key), str) and bool(source[key].strip()), f"source.{key} is required")
+    _require(source["operator_id"] == trusted_operator_id,
+             "source operator identity does not match authenticated manifest signer")
+    _require(source.get("network") == manifest["network"], "source network does not match manifest network")
+
+    provenance = manifest["provenance"]
+    acquisition = manifest.get("acquisition")
+    _require(isinstance(acquisition, dict), "acquisition object is required")
+    for key in ("method", "acquisition_timestamp", "snapshot_timestamp", "db_state_at_acquisition"):
+        _require(key in acquisition, f"acquisition.{key} is required")
+    _require(isinstance(acquisition["method"], str) and bool(acquisition["method"].strip()),
+             "acquisition.method is required")
+    _timestamp(acquisition["acquisition_timestamp"], "acquisition.acquisition_timestamp")
+    _timestamp(acquisition["snapshot_timestamp"], "acquisition.snapshot_timestamp")
+    acquired_at = datetime.fromisoformat(acquisition["acquisition_timestamp"].replace("Z", "+00:00"))
+    snapshot_at = datetime.fromisoformat(acquisition["snapshot_timestamp"].replace("Z", "+00:00"))
+    _require(acquired_at >= snapshot_at, "acquisition timestamp precedes snapshot timestamp")
+    _require(acquisition["snapshot_timestamp"] == provenance["snapshot_date"],
+             "acquisition snapshot timestamp does not match provenance snapshot_date")
+    db_state = acquisition["db_state_at_acquisition"]
+    _require(isinstance(db_state, dict), "acquisition.db_state_at_acquisition must be an object")
+    acquisition_entry = evidence.get("acquisition_record")
+    _require(acquisition_entry is not None and acquisition_entry[0].get("kind") == "acquisition_record",
+             "authenticated acquisition_record evidence is required")
+    acquisition_record = _load_json_file(acquisition_entry[1], "acquisition_record")
+    _require(acquisition_record.get("network") == manifest["network"]
+             and acquisition_record.get("source_system_id") == source["system_id"]
+             and acquisition_record.get("source_database_path") == source["database_path"]
+             and acquisition_record.get("acquired_at") == acquisition["acquisition_timestamp"],
+             "acquisition record does not match signed source/acquisition fields")
+    source_files = acquisition_record.get("source_files")
+    _require(isinstance(source_files, list) and all(isinstance(row, dict) for row in source_files),
+             "acquisition record source_files must be an array of file records")
+    recorded_files = sorted(source_files, key=lambda row: str(row.get("path", "")))
+    manifest_files = sorted(manifest["database_files"], key=lambda row: row.get("path", ""))
+    _require(recorded_files == manifest_files, "source acquisition hashes/sizes do not match candidate artifact files")
+    received_files = acquisition_record.get("received_files")
+    _require(isinstance(received_files, list) and all(isinstance(row, dict) for row in received_files),
+             "acquisition record received_files must include post-transfer hashes and sizes")
+    _require(sorted(received_files, key=lambda row: str(row.get("path", ""))) == manifest_files,
+             "post-transfer hashes/sizes do not match the candidate artifact")
+    _require(acquisition.get("observed_chain_height") == provenance["snapshot_height"]
+             and _is_hash(acquisition.get("observed_tip_block_hash"))
+             and acquisition["observed_tip_block_hash"].lower() == provenance["snapshot_block_hash"].lower()
+             and acquisition_record.get("observed_chain_height") == acquisition["observed_chain_height"]
+             and acquisition_record.get("observed_tip_block_hash") == acquisition["observed_tip_block_hash"],
+             "acquisition-time chain checkpoint does not match the signed snapshot height/tip")
+
+    source_entry = evidence.get("source_identity")
+    _require(source_entry is not None and source_entry[0].get("kind") == "source_identity_record",
+             "authenticated source_identity_record evidence is required")
+    identity_record = _load_json_file(source_entry[1], "source_identity_record")
+    for field in ("organization", "operator_id", "system_id", "node_id", "network", "nis_version", "h2_version"):
+        expected = source["network"] if field == "network" else source[field]
+        _require(identity_record.get(field) == expected, f"source identity evidence mismatch: {field}")
+
+    fingerprint_entry = evidence.get("database_fingerprint")
+    _require(fingerprint_entry is not None and fingerprint_entry[0].get("kind") == "database_fingerprint",
+             "read-only database_fingerprint evidence is required")
+    fingerprint = _load_json_file(fingerprint_entry[1], "database_fingerprint")
+    fingerprint_genesis = fingerprint.get("genesis_block_hash")
+    fingerprint_tip = fingerprint.get("tip_block_hash")
+    _require(fingerprint.get("network") == manifest["network"]
+             and str(fingerprint.get("network_version", "")).lower() == NETWORK_VERSION[manifest["network"]]
+             and _is_hash(fingerprint_genesis)
+             and fingerprint_genesis.lower() == provenance["observed_genesis_block_hash"].lower()
+             and fingerprint.get("height") == provenance["observed_chain_height"]
+             and _is_hash(fingerprint_tip)
+             and fingerprint_tip.lower() == provenance["observed_tip_block_hash"].lower(),
+             "database fingerprint does not match signed network/genesis/height/tip claims")
+
+    quiescence = manifest.get("quiescence")
+    _require(isinstance(quiescence, dict), "structured quiescence object is required")
+    method = quiescence.get("method")
+    if method == "normal-nis-shutdown-h2-close":
+        _require(acquisition["method"] == "copy-after-normal-shutdown",
+                 "normal shutdown evidence requires copy-after-normal-shutdown acquisition method")
+        _require(db_state.get("nis_process") == "stopped" and db_state.get("h2_writer") == "closed",
+                 "normal shutdown requires stopped NIS and closed H2 writer states")
+        shutdown_entry, close_entry = evidence.get("nis_shutdown"), evidence.get("h2_close")
+        _require(shutdown_entry is not None and shutdown_entry[0].get("kind") == "nis_shutdown_record",
+                 "NIS shutdown evidence is required")
+        _require(close_entry is not None and close_entry[0].get("kind") == "h2_close_record",
+                 "H2 close evidence is required")
+        shutdown = _load_json_file(shutdown_entry[1], "NIS shutdown")
+        close = _load_json_file(close_entry[1], "H2 close")
+        _timestamp(quiescence.get("nis_shutdown_completed_at"), "quiescence.nis_shutdown_completed_at")
+        _timestamp(quiescence.get("h2_close_completed_at"), "quiescence.h2_close_completed_at")
+        nis_closed = datetime.fromisoformat(quiescence["nis_shutdown_completed_at"].replace("Z", "+00:00"))
+        h2_closed = datetime.fromisoformat(quiescence["h2_close_completed_at"].replace("Z", "+00:00"))
+        _require(nis_closed <= snapshot_at and h2_closed <= snapshot_at,
+                 "NIS/H2 shutdown must complete no later than snapshot time")
+        _require(shutdown.get("event") == "nis_shutdown_completed" and shutdown.get("exit_code") == 0
+                 and shutdown.get("source_system_id") == source["system_id"]
+                 and shutdown.get("network") == manifest["network"]
+                 and shutdown.get("completed_at") == quiescence["nis_shutdown_completed_at"],
+                 "NIS shutdown evidence is incomplete or inconsistent")
+        _require(close.get("event") == "h2_close_completed" and close.get("database_closed") is True
+                 and close.get("source_system_id") == source["system_id"]
+                 and close.get("database_path") == source["database_path"]
+                 and close.get("completed_at") == quiescence["h2_close_completed_at"],
+                 "H2 close evidence is incomplete or inconsistent")
+    elif method == "application-consistent-storage-snapshot":
+        _require(acquisition["method"] == "application-consistent-storage-snapshot",
+                 "storage snapshot evidence requires matching acquisition method")
+        _require(db_state.get("h2_writer") == "frozen" and db_state.get("snapshot_consistency") == "application-consistent",
+                 "storage snapshot requires an application-consistent frozen-writer state")
+        storage_entry, writer_entry = evidence.get("storage_snapshot"), evidence.get("db_writer_frozen")
+        _require(storage_entry is not None and storage_entry[0].get("kind") == "storage_snapshot_record",
+                 "storage snapshot evidence is required")
+        _require(writer_entry is not None and writer_entry[0].get("kind") == "db_writer_frozen_record",
+                 "database writer freeze evidence is required")
+        storage = _load_json_file(storage_entry[1], "storage snapshot")
+        writer = _load_json_file(writer_entry[1], "database writer freeze")
+        _timestamp(quiescence.get("writer_frozen_at"), "quiescence.writer_frozen_at")
+        writer_frozen_at = datetime.fromisoformat(quiescence["writer_frozen_at"].replace("Z", "+00:00"))
+        _require(writer_frozen_at <= snapshot_at, "database writer must be frozen before snapshot completion")
+        _require(storage.get("event") == "application_consistent_snapshot_completed"
+                 and storage.get("source_system_id") == source["system_id"]
+                 and storage.get("completed_at") == acquisition["snapshot_timestamp"]
+                 and storage.get("atomic") is True and storage.get("application_consistent") is True,
+                 "storage snapshot evidence is incomplete or inconsistent")
+        _require(writer.get("event") == "database_writer_frozen"
+                 and writer.get("source_system_id") == source["system_id"]
+                 and writer.get("frozen_at") == quiescence["writer_frozen_at"],
+                 "database writer freeze evidence is incomplete or inconsistent")
+    else:
+        raise ValidationError("quiescence.method must be a recognized normal-shutdown or application-consistent snapshot")
+
+    checkpoint = manifest.get("independent_checkpoint")
+    _require(isinstance(checkpoint, dict), "independent_checkpoint object is required")
+    for key in ("source_id", "source_operator_id", "source_url", "network", "height", "block_hash",
+                "genesis_block_hash",
+                "retrieved_at", "evidence_id", "signature_path", "signer_id", "public_key_sha256"):
+        _require(key in checkpoint, f"independent_checkpoint.{key} is required")
+    _timestamp(checkpoint["retrieved_at"], "independent_checkpoint.retrieved_at")
+    _require(_is_hash(checkpoint.get("block_hash")), "independent_checkpoint.block_hash must be a 32-byte hex hash")
+    _require(checkpoint["source_operator_id"] != source["operator_id"]
+             and checkpoint["source_id"] != source["system_id"],
+             "checkpoint must come from a distinct independent source/operator")
+    _require(checkpoint["network"] == manifest["network"]
+             and checkpoint["height"] == provenance["snapshot_height"]
+             and checkpoint["genesis_block_hash"].lower() == provenance["expected_genesis_block_hash"].lower()
+             and isinstance(checkpoint["block_hash"], str)
+             and checkpoint["block_hash"].lower() == provenance["snapshot_block_hash"].lower(),
+             "independent checkpoint does not match the candidate network/height/tip")
+    checkpoint_entry = evidence.get(checkpoint["evidence_id"])
+    _require(checkpoint_entry is not None and checkpoint_entry[0].get("kind") == "signed_checkpoint_record",
+             "signed checkpoint record evidence is required")
+    checkpoint_record = _load_json_file(checkpoint_entry[1], "signed checkpoint record")
+    for field, expected in (("source_id", checkpoint["source_id"]), ("source_operator_id", checkpoint["source_operator_id"]),
+                            ("source_url", checkpoint["source_url"]), ("network", checkpoint["network"]),
+                            ("height", checkpoint["height"]), ("block_hash", checkpoint["block_hash"]),
+                            ("genesis_block_hash", checkpoint["genesis_block_hash"]),
+                            ("retrieved_at", checkpoint["retrieved_at"])):
+        _require(checkpoint_record.get(field) == expected, f"signed checkpoint record mismatch: {field}")
+    _require(checkpoint["signer_id"] == trusted_checkpoint_signer_id,
+             "checkpoint signer identity does not match independently pinned identity")
+    _require(checkpoint["signer_id"] != trusted_operator_id,
+             "checkpoint signer must be independent of the artifact source operator")
+    _require(checkpoint["public_key_sha256"] == checkpoint_key_fingerprint,
+             "checkpoint signer key fingerprint does not match the independently pinned key")
+    checkpoint_signature = _trusted_file(bundle_dir, checkpoint["signature_path"], "checkpoint signature")
+    _require(checkpoint_signature != checkpoint_entry[1], "checkpoint signature must be detached from its record")
+    _verify_ed25519(checkpoint_public_key, checkpoint_entry[1], checkpoint_signature, "checkpoint")
+
+    return {
+        "network": manifest["network"],
+        "artifact_id": manifest["artifact_id"],
+        "artifact_files": structural["files"],
+        "directory_fingerprint_sha256": structural["directory_fingerprint_sha256"],
+        "original_artifact_immutable_during_evaluation": True,
+        "operator_signer_id": trusted_operator_id,
+        "operator_public_key_sha256": expected_operator_key,
+        "checkpoint_signer_id": trusted_checkpoint_signer_id,
+        "checkpoint_public_key_sha256": checkpoint_key_fingerprint,
+        "provenance": "pass",
+        "quiescence": "pass",
+        "independent_checkpoint": "pass",
+        "decision": "EVIDENCE_CONTRACT_PASS_REQUIRES_PHASE2F_PAIR_GATE",
+        "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+    }
+
+
+def validate_evidence_pair(mainnet_args: tuple[Any, ...], testnet_args: tuple[Any, ...]) -> dict[str, Any]:
+    """Require independently authenticated Mainnet and Testnet evidence bundles."""
+    mainnet = validate_evidence_manifest(*mainnet_args)
+    testnet = validate_evidence_manifest(*testnet_args)
+    _require(mainnet["network"] == "mainnet", "Mainnet evidence input does not identify Mainnet")
+    _require(testnet["network"] == "testnet", "Testnet evidence input does not identify Testnet")
+    _require(mainnet["artifact_files"] != testnet["artifact_files"],
+             "Mainnet and Testnet must be distinct artifacts")
+    return {
+        "mainnet": mainnet,
+        "testnet": testnet,
+        "decision": "PROVENANCE_QUIESCENCE_EVIDENCE_PASS_BOTH_NETWORKS",
+        "overall_phase2f_gate": "REQUIRES_PRIOR_RUNTIME_AND_CHAIN_STATE_ACCEPTANCE",
+    }
+
+
 def prepare_copy(manifest: dict[str, Any], artifact_dir: Path, destination: Path) -> dict[str, Any]:
     # This stage validates physical provenance and file integrity only. Full
     # identity acceptance must happen after inspecting the disposable copy.
@@ -458,6 +790,25 @@ def main(argv: list[str] | None = None) -> int:
     flyway.add_argument("fingerprint", type=Path)
     flyway.add_argument("--migration-dir", type=Path, default=REPO_ROOT / "nis/src/main/resources/db/h2")
     flyway.add_argument("--report", type=Path)
+    evidence = subparsers.add_parser("evaluate-evidence",
+                                    help="verify a v2 evidence bundle against out-of-band trusted Ed25519 keys")
+    evidence.add_argument("manifest", type=Path)
+    evidence.add_argument("artifact_dir", type=Path)
+    evidence.add_argument("--operator-key", type=Path, required=True)
+    evidence.add_argument("--operator-id", required=True)
+    evidence.add_argument("--checkpoint-key", type=Path, required=True)
+    evidence.add_argument("--checkpoint-signer-id", required=True)
+    evidence.add_argument("--report", type=Path)
+    pair = subparsers.add_parser("evaluate-evidence-pair",
+                                help="require signed provenance/quiescence evidence for both networks")
+    for network in ("mainnet", "testnet"):
+        pair.add_argument(f"--{network}-manifest", type=Path, required=True)
+        pair.add_argument(f"--{network}-artifact-dir", type=Path, required=True)
+        pair.add_argument(f"--{network}-operator-key", type=Path, required=True)
+        pair.add_argument(f"--{network}-operator-id", required=True)
+        pair.add_argument(f"--{network}-checkpoint-key", type=Path, required=True)
+        pair.add_argument(f"--{network}-checkpoint-signer-id", required=True)
+    pair.add_argument("--report", type=Path)
     args = parser.parse_args(argv)
     try:
         if args.command == "inventory":
@@ -474,6 +825,27 @@ def main(argv: list[str] | None = None) -> int:
             result = compare_fingerprints(args.before, args.after)
             _write_report(args.report, result, (args.before, args.after))
             return 0 if result["equivalent"] else 1
+        if args.command == "evaluate-evidence":
+            protected = (args.artifact_dir, args.manifest.parent)
+            _report_target(args.report, protected)
+            result = validate_evidence_manifest(
+                args.manifest, args.artifact_dir, args.operator_key, args.operator_id,
+                args.checkpoint_key, args.checkpoint_signer_id)
+            _write_report(args.report, result, protected)
+            return 0
+        if args.command == "evaluate-evidence-pair":
+            protected = (args.mainnet_artifact_dir, args.testnet_artifact_dir,
+                         args.mainnet_manifest.parent, args.testnet_manifest.parent)
+            _report_target(args.report, protected)
+            mainnet_args = (args.mainnet_manifest, args.mainnet_artifact_dir, args.mainnet_operator_key,
+                            args.mainnet_operator_id, args.mainnet_checkpoint_key,
+                            args.mainnet_checkpoint_signer_id)
+            testnet_args = (args.testnet_manifest, args.testnet_artifact_dir, args.testnet_operator_key,
+                            args.testnet_operator_id, args.testnet_checkpoint_key,
+                            args.testnet_checkpoint_signer_id)
+            result = validate_evidence_pair(mainnet_args, testnet_args)
+            _write_report(args.report, result, protected)
+            return 0
         manifest = load_manifest(args.manifest)
         if args.command == "prepare-copy":
             _report_target(args.report, (args.artifact_dir, args.working_copy))
@@ -482,7 +854,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             _report_target(args.report, (args.artifact_dir, Path(manifest["disposable_working_copy_path"])))
             result = validate_manifest(manifest, args.artifact_dir)
-            result["accepted"] = True
+            result["accepted_for_intake_only"] = True
+            result["trust_decision"] = "NOT_AUTHENTICATED_V1_MANIFEST"
             protected = (args.artifact_dir, Path(manifest["disposable_working_copy_path"]))
         _write_report(args.report, result, protected)
         return 0
