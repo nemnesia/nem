@@ -124,8 +124,8 @@ Each network remains independently gated. Mainnet evidence cannot satisfy Testne
 ## Tests, CI, and final gate
 
 - No source/tool code changed; no Maven or unit tests were rerun. This phase performed read-only public checkpoint queries and local size/hash/stat/Git-history inspection only.
-- Prior tooling/runtime test and CI results are documented in the linked Phase 2F reports; those runs predate this document and are not a CI run for this final documentation commit.
-- Hosted CI status for this docs-only commit could not be queried locally: `gh auth status` reported the configured GitHub token invalid. No application-code validation was needed for this documentation-only change.
+- Prior tooling/runtime test results are documented in the linked Phase 2F reports. The initial documentation commit `5e98e6b882e8d1a0cc4a6408d5db9d672a80d4bf` triggered hosted Java 17 run `36480831664` and Java 25 run `36480831706`; both completed successfully (clean test and package workflows).
+- `gh auth status` reported the configured GitHub token invalid. Run results were verified using GitHub's public Actions API. No application-code validation was needed for this documentation-only change. This evidence update itself triggers the same workflows on its final commit; their IDs/results are reported in the phase completion report.
 - Mainnet candidate: **BLOCKED** on external provenance and quiescence; historical tip externally corroborated.
 - Testnet candidate: **BLOCKED** on external provenance and quiescence; historical tip externally corroborated.
 - **Phase 2F overall real-database gate: BLOCKED — trusted provenance / quiesced snapshot evidence required.** No DB gate is released by this follow-up.
