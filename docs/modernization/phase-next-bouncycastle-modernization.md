@@ -18,12 +18,14 @@ This change updates one production dependency concern in Core. It does not chang
 | Candidate | Existing usage and boundary | Decision |
 |---|---|---|
 | `org.bouncycastle:bcprov-jdk15on:1.70` (Core production) | Directly used for NEM Keccak/RIPEMD hashes, secp256k1 operations, and AES-CBC support. Upstream marks the pre-1.71 `jdk15on` artifact family EOL. Current `bcprov-jdk18on:1.86` is the Java 8+ provider line and keeps the `org.bouncycastle` packages. | **Selected.** Same provider family, stable supported coordinate, runtime Java 17/25 validation, existing deterministic signature vector, and added fixed hash vectors. |
-| `org.apache.httpcomponents:httpasyncclient:4.1.5` (Core production) | Existing async HTTP client path is used by Core networking. Its modern successor is a separate HttpComponents major/API line, so this would broaden the change into HTTP request/cancellation/timeout behavior. | Not selected; higher behavior and source migration risk. |
-| `org.apache.commons:commons-math3:3.6.1` (Core production) | Used in Core math code, including importance calculations. No drop-in update in the same artifact/API line was identified. | Not selected; a math-library migration needs separate numeric compatibility evidence. |
-| `com.googlecode.matrix-toolkits-java:mtj:1.0.4` (Core test) | Test-only numerical fixture dependency; no compatible successor was identified during this review. | Not selected; test-only and no clear successor. |
-| `com.googlecode.velocity-maven-plugin:velocity-maven-plugin:1.1.0` (NIS build plugin) | Legacy plugin declaration; its generated output is a separate build concern from the runtime dependency selected here. | Not selected; avoid combining build-plugin behavior changes with a production cryptography dependency update. |
+| `org.apache.httpcomponents:httpasyncclient:4.1.5` (Core production) | Apache marks HttpAsyncClient 4 as EOL and recommends HttpClient 5. The 5.x async APIs use a different event-driven model, affecting Core networking semantics. | Not selected; needs a separate HTTP transport migration and request/cancellation/timeout evidence. |
+| `org.apache.commons:commons-math3:3.6.1` (Core production) | Used in Core math code, including importance calculations. The Math 4 line is still beta and Apache describes it as a major release requiring source changes. | Not selected; needs separate numeric compatibility evidence. |
+| `com.googlecode.matrix-toolkits-java:mtj:1.0.4` (Core test) | Test-only numerical fixture dependency; Maven Central lists only 1.0.4 for this coordinate. | Not selected; test-only and no successor coordinate to migrate to. |
+| `com.googlecode.velocity-maven-plugin:velocity-maven-plugin:1.1.0` (NIS build plugin) | Legacy plugin declaration has no configured execution in `nis/pom.xml`, so it is not invoked by the normal Maven lifecycle. | Not selected; changing an inactive plugin declaration would not modernize runtime and is unrelated to the chosen concern. |
 
 The Spring, Hibernate, Validator, H2, Flyway, Jetty, EL, and WireMock versions were treated as established compatibility boundaries and left unchanged. Maven plugins in the active module POMs were reviewed; no plugin change was needed for this one-dependency task.
+
+Sources for the deferred candidates: [HttpAsyncClient 4 EOL notice](https://hc.apache.org/httpcomponents-asyncclient-4.1.x/index.html), [HttpClient 5 migration guide](https://hc.apache.org/httpcomponents-client-5.6.x/migration-guide/index.html), [Commons Math release history](https://commons.apache.org/proper/commons-math/changes-report.html), [MTJ Central coordinates](https://central.sonatype.com/artifact/com.googlecode.matrix-toolkits-java/mtj).
 
 ## Upstream and compatibility basis
 
@@ -73,6 +75,13 @@ The initial sandboxed Maven attempt could not resolve Central DNS; the final fre
 
 ## Hosted CI and remaining limits
 
-Hosted Java 17 / Java 25 workflows are checked after the implementation and documentation commits are pushed; final run IDs and step results are recorded in the task report. The local full test and package results above are from the final source changes.
+On implementation/documentation commit `be48b04aaae829b3c088d74181b7c973327d3193`, both hosted workflows passed:
+
+| Workflow | Run | Result |
+|---|---:|---|
+| Java 17 Baseline | [36409868303](https://github.com/nemnesia/nem/actions/runs/36409868303) | **PASS** — clean tests and package |
+| Java 25 Compatibility | [36409868300](https://github.com/nemnesia/nem/actions/runs/36409868300) | **PASS** — clean tests and package |
+
+The final documentation-only follow-up's hosted checks are reported in the task result. The local full test and package results above are from the final source changes.
 
 This validation establishes compatibility against the repository's synthetic/test fixtures and fixed cryptographic vectors. It does **not** establish Mainnet or Testnet real-database compatibility. Phase 2F remains **BLOCKED** until provenance-verified real DB artifacts are supplied and validated independently for both networks.
