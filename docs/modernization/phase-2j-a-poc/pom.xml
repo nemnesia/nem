@@ -1,0 +1,13 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion><groupId>poc</groupId><artifactId>phase2j-a-ee11-spring7</artifactId><version>1</version>
+  <properties><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><maven.compiler.release>17</maven.compiler.release><spring.version>7.0.9</spring.version><jetty.version>12.1.13</jetty.version></properties>
+  <dependencies>
+    <dependency><groupId>org.eclipse.jetty.ee11</groupId><artifactId>jetty-ee11-servlet</artifactId><version>${jetty.version}</version></dependency>
+    <dependency><groupId>org.eclipse.jetty.ee11.websocket</groupId><artifactId>jetty-ee11-websocket-jakarta-server</artifactId><version>${jetty.version}</version></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-server</artifactId><version>${jetty.version}</version></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-webmvc</artifactId><version>${spring.version}</version></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-websocket</artifactId><version>${spring.version}</version></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-messaging</artifactId><version>${spring.version}</version></dependency>
+  </dependencies>
+  <build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.1</version><configuration><release>17</release></configuration></plugin><plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.5.1</version></plugin></plugins></build>
+</project>
