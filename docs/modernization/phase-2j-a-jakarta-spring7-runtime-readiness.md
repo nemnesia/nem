@@ -133,7 +133,8 @@ Rollback point: retain the current production branch and artifacts unchanged unt
 - Isolated standalone POC in `docs/modernization/phase-2j-a-poc/`: Java 17 and Java 25 runtime probes passed using separate fresh temporary Maven repositories; Maven logs show the Spring/Jetty artifacts resolved from `repo.maven.apache.org`. Both used Java 17 source compatibility (`--release 17`).
 - Current production dependency graph remains Jetty EE8 + Spring 5.3.39 + Hibernate 5.4.33.Final; no POC dependencies were added to production artifacts or `nis/target/libs`.
 - No repository Maven tests were rerun: the committed change is readiness documentation only, and the runtime proof was executed in an isolated `/tmp` POC. Existing Jetty 12 production regression evidence remains the Phase 2I-S baseline; it is not recharacterized as a Spring 7 regression run.
-- `git diff --check` is required for this documentation change.
+- Hosted CI on the implementation commit `1a555faf948af89a37fc70a80540f6a4afa62b93` passed both test and package jobs: [Java 17 Baseline run 36567466100](https://github.com/nemnesia/nem/actions/runs/36567466100), [Java 25 Compatibility run 36567466185](https://github.com/nemnesia/nem/actions/runs/36567466185). A documentation-only follow-up records these results.
+- `git diff --check` passed for the committed changes.
 - Phase 2F remains **BLOCKED — external trusted artifact/evidence owner required**. Existing DB candidates and their runtime compatibility evidence are not provenance evidence. Trusted Mainnet/Testnet snapshots remain required before full persisted-chain equivalence can be claimed in Phase 2K.
 
 ## Upstream sources consulted
