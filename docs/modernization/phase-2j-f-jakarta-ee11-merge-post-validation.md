@@ -13,6 +13,7 @@
 - Requested and actual source tip: `1bd0f71103b094fe2b7e3eae86f82a86834ee114`
 - Merge base: `03ba8ed2ea20859c384cf52744e80e0ea461f984`
 - Merge commit: `d68997426f0d1fc7bc2fa0046657b453b4b20dcf` (`[nis] merge Jakarta EE11 integration`)
+- Final validation-record commit: a documentation-only commit follows the merge; see target branch history for its final SHA.
 - Merge conflicts: none
 - Merge diff: 97 files changed, 1,530 insertions, 674 deletions
 - The target had no new commit beyond the expected base. The integration source was the accepted Phase 2J-E tip.
@@ -74,7 +75,7 @@ No Flyway migration SQL, database schema resource, or migration-history expectat
 
 ## Hosted CI and independent Phase 2F gate
 
-Hosted CI was **not verified** for the final target commit. The integration acceptance record states that the integration branch did not trigger the configured hosted workflows and the available GitHub credential could not be used for manual dispatch. Local validation is not represented as hosted CI success.
+Hosted CI was **not verified** for the final target commit. `gh auth status` succeeded, but `gh run list --branch agent/nis-phase0-baseline --limit 10` failed with `error connecting to api.github.com`; no run result could be retrieved. Local validation is not represented as hosted CI success.
 
 Phase 2F remains **BLOCKED — external trusted artifact/evidence owner required**. Trusted Mainnet/Testnet snapshot provenance, custody, quiescence, and independently trusted checkpoint evidence remain outstanding. The Phase 2J merge and synthetic runtime probes do not close that gate and do not establish real Mainnet/Testnet production-data compatibility.
 
