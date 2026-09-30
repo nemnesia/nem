@@ -1,6 +1,6 @@
 package org.nem.nis.dbmodel;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 /**
  * Mosaic supply change db entity <br>

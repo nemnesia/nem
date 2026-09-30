@@ -3,7 +3,6 @@ package org.nem.nis.dao.retrievers;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.hibernate.*;
-import org.hibernate.criterion.*;
 import org.nem.nis.dao.*;
 import org.nem.nis.dbmodel.*;
 
@@ -21,18 +20,11 @@ public class ImportanceTransferRetriever implements TransactionRetriever {
 		}
 
 		final String senderOrRecipient = ReadOnlyTransferDao.TransferType.OUTGOING.equals(transferType) ? "sender" : "remote";
-		final Criteria criteria = session.createCriteria(DbImportanceTransferTransaction.class) // preserve-newline
-				.setFetchMode("block", FetchMode.JOIN) // preserve-newline
-				.setFetchMode("sender", FetchMode.JOIN) // preserve-newline
-				.setFetchMode("remote", FetchMode.JOIN) // preserve-newline
-				.add(Restrictions.eq(senderOrRecipient + ".id", accountId)) // preserve-newline
-				.add(Restrictions.isNotNull("senderProof")) // preserve-newline
-				.add(Restrictions.lt("id", maxId)) // preserve-newline
-				.addOrder(Order.asc(senderOrRecipient)) // preserve-newline
-				.addOrder(Order.desc("id")) // preserve-newline
-				.setMaxResults(limit);
-		criteria.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY);
-		final List<DbImportanceTransferTransaction> list = HibernateUtils.listAndCast(criteria);
+		final String hql = "select distinct t from DbImportanceTransferTransaction t join fetch t.block join fetch t.sender join fetch t.remote "
+				+ "where t." + senderOrRecipient + ".id = :accountId and t.senderProof is not null and t.id < :maxId "
+				+ "order by t." + senderOrRecipient + ".id asc, t.id desc";
+		final List<DbImportanceTransferTransaction> list = session.createQuery(hql, DbImportanceTransferTransaction.class)
+				.setParameter("accountId", accountId).setParameter("maxId", maxId).setMaxResults(limit).getResultList();
 		return list.stream().map(t -> new TransferBlockPair(t, t.getBlock())).collect(Collectors.toList());
 	}
 }

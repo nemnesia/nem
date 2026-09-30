@@ -1,10 +1,10 @@
 package org.nem.nis.dbmodel;
 
 import java.util.Set;
-import javax.persistence.*;
-import javax.persistence.CascadeType;
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.*;
 
 /**
@@ -18,12 +18,10 @@ public class DbMosaicDefinition {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "mosaicDefinition", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.FALSE)
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "mosaicDefinition", orphanRemoval = true)
 	private Set<DbMosaicProperty> properties;
 
-	@ManyToOne
-	@Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+	@ManyToOne(cascade = { jakarta.persistence.CascadeType.PERSIST, jakarta.persistence.CascadeType.MERGE })
 	@JoinColumn(name = "creatorId")
 	private DbAccount creator;
 
@@ -35,8 +33,7 @@ public class DbMosaicDefinition {
 
 	private Integer feeType;
 
-	@ManyToOne
-	@Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+	@ManyToOne(cascade = { jakarta.persistence.CascadeType.PERSIST, jakarta.persistence.CascadeType.MERGE })
 	@JoinColumn(name = "feeRecipientId")
 	private DbAccount feeRecipient;
 

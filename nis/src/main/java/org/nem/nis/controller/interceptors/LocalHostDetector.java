@@ -2,7 +2,7 @@ package org.nem.nis.controller.interceptors;
 
 import java.net.*;
 import java.util.*;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.nem.core.utils.ExceptionUtils;
 
 /**

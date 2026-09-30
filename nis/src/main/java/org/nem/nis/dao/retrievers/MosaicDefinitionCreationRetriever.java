@@ -3,7 +3,6 @@ package org.nem.nis.dao.retrievers;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.hibernate.*;
-import org.hibernate.criterion.*;
 import org.nem.nis.dao.*;
 import org.nem.nis.dbmodel.*;
 
@@ -23,18 +22,11 @@ public class MosaicDefinitionCreationRetriever implements TransactionRetriever {
 			return Collections.emptyList();
 		}
 
-		final Criteria criteria = session.createCriteria(DbMosaicDefinitionCreationTransaction.class) // preserve-newline
-				.setFetchMode("block", FetchMode.JOIN) // preserve-newline
-				.setFetchMode("sender", FetchMode.JOIN) // preserve-newline
-				.add(Restrictions.eq("sender.id", accountId)) // preserve-newline
-				.add(Restrictions.isNotNull("senderProof")) // preserve-newline
-				.add(Restrictions.lt("id", maxId)) // preserve-newline
-				.addOrder(Order.asc("sender.id")) // preserve-newline
-				.addOrder(Order.desc("id")) // preserve-newline
-				.setMaxResults(limit) // preserve-newline
-				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY);
-
-		final List<DbMosaicDefinitionCreationTransaction> list = HibernateUtils.listAndCast(criteria);
+		final String hql = "select distinct t from DbMosaicDefinitionCreationTransaction t join fetch t.block join fetch t.sender "
+				+ "where t.sender.id = :accountId and t.senderProof is not null and t.id < :maxId "
+				+ "order by t.sender.id asc, t.id desc";
+		final List<DbMosaicDefinitionCreationTransaction> list = session.createQuery(hql, DbMosaicDefinitionCreationTransaction.class)
+				.setParameter("accountId", accountId).setParameter("maxId", maxId).setMaxResults(limit).getResultList();
 		return list.stream().map(t -> new TransferBlockPair(t, t.getBlock())).collect(Collectors.toList());
 	}
 }

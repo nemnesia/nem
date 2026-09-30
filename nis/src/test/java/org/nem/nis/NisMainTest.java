@@ -28,10 +28,11 @@ import org.nem.nis.test.*;
 import org.nem.specific.deploy.NisConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
 @ContextConfiguration(classes = TestConf.class)
-@RunWith(SpringJUnit4ClassRunner.class)
+@SuppressWarnings("deprecation")
+@RunWith(SpringRunner.class)
 public class NisMainTest {
 	private static final PrivateKey TEST_ADDRESS1_PK = PrivateKey
 			.fromHexString("a19b6703da86ea9b09fba1d1f5be83f0f77dae11d946d4b4175845225e0254d0");

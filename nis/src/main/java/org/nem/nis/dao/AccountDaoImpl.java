@@ -2,6 +2,7 @@ package org.nem.nis.dao;
 
 import java.util.List;
 import org.hibernate.*;
+import org.hibernate.query.Query;
 import org.nem.nis.dbmodel.DbAccount;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;

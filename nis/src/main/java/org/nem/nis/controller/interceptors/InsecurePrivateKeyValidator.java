@@ -1,7 +1,7 @@
 package org.nem.nis.controller.interceptors;
 
 import java.util.logging.Logger;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.nem.core.crypto.*;
 import org.nem.core.model.Address;
 import org.nem.nis.cache.ReadOnlyAccountStateCache;

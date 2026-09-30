@@ -1,6 +1,6 @@
 package org.nem.deploy;
 
-import javax.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServlet;
 
 /**
  * Interface which supplies additional configuration information.

@@ -1,12 +1,13 @@
 package org.nem.nis.dao;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.function.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.hibernate.*;
-import org.hibernate.criterion.*;
-import org.hibernate.type.LongType;
+import org.hibernate.query.Query;
 import org.nem.core.crypto.HashChain;
 import org.nem.core.model.*;
 import org.nem.core.model.mosaic.MosaicId;
@@ -43,7 +44,8 @@ public class BlockDaoImpl implements BlockDao {
 	}
 
 	private void saveSingleBlock(final DbBlock block) {
-		this.getCurrentSession().saveOrUpdate(block);
+		this.prepareAccountReferences(block, new HashMap<>(), new IdentityHashMap<>());
+		this.getCurrentSession().persist(block);
 		this.addToMosaicIdsCache(block);
 
 		final ArrayList<DbMultisigSend> sendList = new ArrayList<>(100);
@@ -68,12 +70,82 @@ public class BlockDaoImpl implements BlockDao {
 		}
 
 		for (final DbMultisigSend send : sendList) {
-			this.getCurrentSession().saveOrUpdate(send);
+			this.getCurrentSession().persist(send);
 		}
 
 		for (final DbMultisigReceive receive : receiveList) {
-			this.getCurrentSession().saveOrUpdate(receive);
+			this.getCurrentSession().persist(receive);
 		}
+	}
+
+	private void prepareAccountReferences(final Object value, final Map<String, DbAccount> accounts,
+			final IdentityHashMap<Object, Boolean> visited) {
+		if (null == value || visited.put(value, Boolean.TRUE) != null) {
+			return;
+		}
+		if (value instanceof Collection<?>) {
+			final Collection<?> collection = (Collection<?>) value;
+			final List<Object> normalized = new ArrayList<>(collection.size());
+			for (final Object item : collection) {
+				if (item instanceof DbAccount) {
+					normalized.add(this.getManagedAccount((DbAccount) item, accounts));
+				} else {
+					this.prepareAccountReferences(item, accounts, visited);
+					normalized.add(item);
+				}
+			}
+			@SuppressWarnings("unchecked")
+			final Collection<Object> mutableCollection = (Collection<Object>) collection;
+			mutableCollection.clear();
+			mutableCollection.addAll(normalized);
+			return;
+		}
+		if (!value.getClass().getPackageName().equals(DbBlock.class.getPackageName())) {
+			return;
+		}
+		for (Class<?> type = value.getClass(); null != type && type != Object.class; type = type.getSuperclass()) {
+			for (final Field field : type.getDeclaredFields()) {
+				if (Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) {
+					continue;
+				}
+				try {
+					field.setAccessible(true);
+					final Object fieldValue = field.get(value);
+					if (fieldValue instanceof DbAccount) {
+						field.set(value, this.getManagedAccount((DbAccount) fieldValue, accounts));
+					} else {
+						this.prepareAccountReferences(fieldValue, accounts, visited);
+					}
+				} catch (final IllegalAccessException e) {
+					throw new IllegalStateException("Unable to prepare account references for persistence", e);
+				}
+			}
+		}
+	}
+
+	private DbAccount getManagedAccount(final DbAccount account, final Map<String, DbAccount> accounts) {
+		final String key = account.getPrintableKey();
+		final DbAccount cached = accounts.get(key);
+		if (null != cached) {
+			return cached;
+		}
+		final Session session = this.getCurrentSession();
+		DbAccount managed = null == account.getId() ? null : session.find(DbAccount.class, account.getId());
+		if (null != managed && !key.equals(managed.getPrintableKey())) {
+			managed = null;
+		}
+		if (null == managed) {
+			managed = session.createSelectionQuery("from DbAccount a where a.printableKey = :key", DbAccount.class)
+					.setParameter("key", key).getSingleResultOrNull();
+		}
+		if (null == managed) {
+			managed = session.merge(account);
+			account.setId(managed.getId());
+		} else if (null == managed.getPublicKey() && null != account.getPublicKey()) {
+			managed.setPublicKey(account.getPublicKey());
+		}
+		accounts.put(key, managed);
+		return managed;
 	}
 
 	private <TDbModel extends AbstractBlockTransfer> int processInnerTransaction(final DbMultisigTransaction transaction,
@@ -201,7 +273,7 @@ public class BlockDaoImpl implements BlockDao {
 		final String queryString = "((SELECT b.* FROM blocks b WHERE height<:height AND harvesterId=:accountId limit :limit) UNION "
 				+ "(SELECT b.* FROM blocks b WHERE height<:height AND harvestedInName=:accountId limit :limit)) "
 				+ "ORDER BY height DESC limit :limit";
-		final Query query = this.getCurrentSession().createSQLQuery(queryString) // preserve-newline
+		final Query query = this.getCurrentSession().createNativeQuery(queryString) // preserve-newline
 				.addEntity(DbBlock.class) // preserve-newline
 				.setParameter("height", height) // preserve-newline
 				.setParameter("accountId", accountId) // preserve-newline
@@ -376,9 +448,9 @@ public class BlockDaoImpl implements BlockDao {
 	private void dropTransfers(final BlockHeight blockHeight, final String tableName, final String transfersName,
 			final Consumer<List<Long>> preQuery) {
 		final Query getTransactionIdsQuery = this.getCurrentSession()
-				.createSQLQuery("select tx.id as txid from blocks b left outer join " + transfersName
+				.createNativeQuery("select tx.id as txid from blocks b left outer join " + transfersName
 						+ " tx on b.id=tx.blockid where b.height > :height and tx.id is not null") // preserve-newline
-				.addScalar("txid", LongType.INSTANCE) // preserve-newline
+				.addScalar("txid", Long.class) // preserve-newline
 				.setParameter("height", blockHeight.getRaw());
 		final List<Long> transactionsToDelete = HibernateUtils.listAndCast(getTransactionIdsQuery);
 
@@ -407,12 +479,13 @@ public class BlockDaoImpl implements BlockDao {
 	}
 
 	private <T> List<T> prepareCriteriaGetFor(final String name, final BlockHeight height, final int limit) {
-		final Criteria criteria = this.getCurrentSession() // preserve-newline
-				.createCriteria(DbBlock.class).setMaxResults(limit) // preserve-newline
-				.add(Restrictions.ge("height", height.getRaw())) // >=
-				.setProjection(Projections.property(name)) // preserve-newline
-				.addOrder(Order.asc("height"));
-		return HibernateUtils.listAndCast(criteria);
+		final Query<?> query = this.getCurrentSession()
+				.createQuery("select b." + name + " from DbBlock b where b.height >= :height order by b.height asc", Object.class)
+				.setParameter("height", height.getRaw())
+				.setMaxResults(limit);
+		@SuppressWarnings("unchecked")
+		final List<T> values = (List<T>) (List<?>) query.getResultList();
+		return values;
 	}
 
 	private void addToMosaicIdsCache(final DbBlock block) {

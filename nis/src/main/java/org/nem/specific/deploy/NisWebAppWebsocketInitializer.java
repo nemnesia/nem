@@ -6,7 +6,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.ServiceLoader;
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletContext;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import net.minidev.json.JSONValue;
@@ -31,8 +31,7 @@ import org.springframework.web.socket.sockjs.frame.AbstractSockJsMessageCodec;
 @Configuration
 @ComponentScan("org.nem.nis.websocket")
 @EnableWebSocketMessageBroker
-@SuppressWarnings("deprecation")
-public class NisWebAppWebsocketInitializer extends AbstractWebSocketMessageBrokerConfigurer implements ServletContextAware {
+public class NisWebAppWebsocketInitializer implements WebSocketMessageBrokerConfigurer, ServletContextAware {
 	private ServletContext servletContext;
 
 	@Override
@@ -109,7 +108,7 @@ public class NisWebAppWebsocketInitializer extends AbstractWebSocketMessageBroke
 			return null;
 		}
 
-		final Object container = this.servletContext.getAttribute("javax.websocket.server.ServerContainer");
+		final Object container = this.servletContext.getAttribute("jakarta.websocket.server.ServerContainer");
 		if (null == container) {
 			return null;
 		}

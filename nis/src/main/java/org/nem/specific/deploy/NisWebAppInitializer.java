@@ -8,9 +8,9 @@ import org.nem.nis.controller.interceptors.*;
 import org.nem.nis.service.BlockChainLastBlockLayer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.*;
-import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.HttpMessageConverters;
 import org.springframework.web.servlet.config.annotation.*;
-import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
+import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
  * Class supplying Spring MVC configuration.
@@ -20,7 +20,6 @@ import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 		"org.nem.nis.controller", "org.nem.nis.a"
 })
 // @EnableWebMvc // this cannot be present, when using WebMvcConfigurationSupport
-@SuppressWarnings("deprecation")
 public class NisWebAppInitializer extends WebMvcConfigurationSupport {
 	@Autowired
 	private AccountLookup accountLookup;
@@ -38,16 +37,15 @@ public class NisWebAppInitializer extends WebMvcConfigurationSupport {
 	private LocalHostDetector localHostDetector;
 
 	@Override
-	protected void configureMessageConverters(final List<HttpMessageConverter<?>> converters) {
-		addConvertersForPolicy(converters, new JsonSerializationPolicy(this.accountLookup));
-		addConvertersForPolicy(converters, new BinarySerializationPolicy(this.accountLookup));
-		this.addDefaultHttpMessageConverters(converters);
+	protected void configureMessageConverters(final HttpMessageConverters.ServerBuilder builder) {
+		addConvertersForPolicy(builder, new JsonSerializationPolicy(this.accountLookup));
+		addConvertersForPolicy(builder, new BinarySerializationPolicy(this.accountLookup));
 	}
 
-	private static void addConvertersForPolicy(final List<HttpMessageConverter<?>> converters, final SerializationPolicy policy) {
-		converters.add(new DeserializerHttpMessageConverter(policy));
-		converters.add(new SerializableEntityHttpMessageConverter(policy));
-		converters.add(new DeserializableEntityMessageConverter(policy));
+	private static void addConvertersForPolicy(final HttpMessageConverters.ServerBuilder builder, final SerializationPolicy policy) {
+		builder.addCustomConverter(new DeserializerHttpMessageConverter(policy));
+		builder.addCustomConverter(new SerializableEntityHttpMessageConverter(policy));
+		builder.addCustomConverter(new DeserializableEntityMessageConverter(policy));
 	}
 
 	@Override
@@ -58,7 +56,7 @@ public class NisWebAppInitializer extends WebMvcConfigurationSupport {
 		super.addInterceptors(registry);
 	}
 
-	private HandlerInterceptorAdapter createAuditInterceptor() {
+	private HandlerInterceptor createAuditInterceptor() {
 		return new AuditInterceptor(Arrays.asList(this.nisConfiguration.getNonAuditedApiPaths()), this.host.getIncomingAudits());
 	}
 }

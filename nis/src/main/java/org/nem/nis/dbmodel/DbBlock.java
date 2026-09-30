@@ -2,10 +2,10 @@ package org.nem.nis.dbmodel;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import javax.persistence.*;
-import javax.persistence.CascadeType;
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.*;
 import org.nem.core.crypto.Hash;
 
@@ -27,14 +27,12 @@ public class DbBlock {
 	private byte[] generationHash;
 	private Integer timeStamp;
 
-	@ManyToOne
-	@Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+	@ManyToOne(cascade = { jakarta.persistence.CascadeType.PERSIST, jakarta.persistence.CascadeType.MERGE })
 	@JoinColumn(name = "harvesterId")
 	private DbAccount harvester;
 	private byte[] harvesterProof;
 
-	@ManyToOne
-	@Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+	@ManyToOne(cascade = { jakarta.persistence.CascadeType.PERSIST, jakarta.persistence.CascadeType.MERGE })
 	@JoinColumn(name = "harvestedInName")
 	private DbAccount lessor;
 
@@ -43,31 +41,24 @@ public class DbBlock {
 	private Long difficulty;
 
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "block", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<DbTransferTransaction> blockTransferTransactions = new ArrayList<>();
 
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "block", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<DbImportanceTransferTransaction> blockImportanceTransferTransactions = new ArrayList<>();
 
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "block", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<DbMultisigAggregateModificationTransaction> blockMultisigAggregateModificationTransactions = new ArrayList<>();
 
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "block", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<DbMultisigTransaction> blockMultisigTransactions = new ArrayList<>();
 
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "block", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<DbProvisionNamespaceTransaction> blockProvisionNamespaceTransactions = new ArrayList<>();
 
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "block", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<DbMosaicDefinitionCreationTransaction> blockMosaicDefinitionCreationTransactions = new ArrayList<>();
 
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "block", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<DbMosaicSupplyChangeTransaction> blockMosaicSupplyChangeTransactions = new ArrayList<>();
 
 	public Long getId() {

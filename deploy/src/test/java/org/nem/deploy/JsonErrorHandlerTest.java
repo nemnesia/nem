@@ -1,203 +1,112 @@
 package org.nem.deploy;
 
-import java.io.*;
-import javax.servlet.*;
-import javax.servlet.http.*;
-import net.minidev.json.*;
-import org.eclipse.jetty.ee8.nested.Request;
-import org.eclipse.jetty.ee8.nested.Response;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.core.*;
-import org.junit.*;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.Callback;
+import org.junit.Assert;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.nem.core.connect.ErrorResponse;
-import org.nem.core.serialization.*;
-import org.nem.core.time.*;
+import org.nem.core.serialization.Deserializer;
+import org.nem.core.serialization.JsonDeserializer;
+import org.nem.core.time.TimeInstant;
+import org.nem.core.time.TimeProvider;
+import net.minidev.json.JSONObject;
+import net.minidev.json.JSONValue;
 
 public class JsonErrorHandlerTest {
 	private static final TimeInstant CURRENT_TIME = new TimeInstant(84);
 
 	@Test
-	public void nothingIsWrittenIfHttpMethodIsUnsupported() throws Exception {
-		// Arrange:
-		final TestContext context = new TestContext("DELETE");
-
-		// Act:
-		context.handle();
-
-		// Assert:
-		Mockito.verify(context.getBaseRequest()).setHandled(true);
-		Mockito.verify(context.getResponse(), Mockito.never()).getOutputStream();
+	public void unsupportedMethodsAreNotHandledByTheErrorHandler() {
+		final JsonErrorHandler handler = new JsonErrorHandler(timeProvider());
+		Assert.assertFalse(handler.errorPageForMethod("DELETE"));
+		Assert.assertTrue(handler.errorPageForMethod("GET"));
 	}
 
 	@Test
-	public void responseHeadersAreWrittenCorrectlyWhenCacheControlIsSpecified() throws Exception {
-		// Arrange:
-		final TestContext context = new TestContext("GET");
-		context.getErrorHandler().setCacheControl("foo");
+	public void responseHeadersAndBodyAreWrittenCorrectly() throws Exception {
+		final TestContext context = new TestContext("badness", "foo");
 
-		// Act:
 		context.handle();
 
-		// Assert:
-		Mockito.verify(context.getBaseRequest()).setHandled(true);
-		Mockito.verify(context.getResponse()).setContentType("application/json");
-		Mockito.verify(context.getResponse()).setHeader("Cache-Control", "foo");
+		Mockito.verify(context.response).setStatus(123);
+		Mockito.verify(context.headers).put(org.eclipse.jetty.http.HttpHeader.CONTENT_TYPE, "application/json");
+		Mockito.verify(context.headers).put(org.eclipse.jetty.http.HttpHeader.CACHE_CONTROL, "foo");
+		final String body = context.body();
+		Mockito.verify(context.headers).put(org.eclipse.jetty.http.HttpHeader.CONTENT_LENGTH, body.getBytes(StandardCharsets.ISO_8859_1).length);
+		Assert.assertTrue(body.endsWith("\r\n"));
+		final ErrorResponse error = context.errorResponse();
+		Assert.assertEquals(CURRENT_TIME, error.getTimeStamp());
+		Assert.assertEquals(123, error.getStatus());
+		Assert.assertEquals("badness", error.getMessage());
 	}
 
 	@Test
-	public void responseHeadersAreWrittenCorrectlyWhenCacheControlIsNotSpecified() throws Exception {
-		// Arrange:
-		final TestContext context = new TestContext("GET");
-		context.getErrorHandler().setCacheControl(null);
+	public void cacheControlIsOmittedWhenNotConfiguredAndMissingReasonStaysNull() throws Exception {
+		final TestContext context = new TestContext(null, null);
 
-		// Act:
 		context.handle();
 
-		// Assert:
-		Mockito.verify(context.getBaseRequest()).setHandled(true);
-		Mockito.verify(context.getResponse()).setContentType("application/json");
-		Mockito.verify(context.getResponse(), Mockito.never()).setHeader(Mockito.anyString(), Mockito.anyString());
+		Mockito.verify(context.headers, Mockito.never()).put(org.eclipse.jetty.http.HttpHeader.CACHE_CONTROL, "foo");
+		Assert.assertNull(context.errorResponse().getMessage());
 	}
 
-	@Test
-	public void responseContentLengthIsWrittenCorrectly() throws Exception {
-		// Arrange:
-		final TestContext context = new TestContext("GET");
-
-		// Act:
-		context.handle();
-
-		// Assert:
-		Mockito.verify(context.getResponse()).setContentLength(context.getOutputStreamContent().length());
+	private static TimeProvider timeProvider() {
+		final TimeProvider provider = Mockito.mock(TimeProvider.class);
+		Mockito.when(provider.getCurrentTime()).thenReturn(CURRENT_TIME);
+		return provider;
 	}
 
-	@Test
-	public void jsonBodyEndsWithTerminatingNewLine() throws Exception {
-		// Arrange:
-		final TestContext context = new TestContext("GET");
+	private static final class TestContext {
+		private final ExposedJsonErrorHandler handler = new ExposedJsonErrorHandler(timeProvider());
+		private final Request request = Mockito.mock(Request.class);
+		private final Response response = Mockito.mock(Response.class);
+		private final HttpFields.Mutable headers = Mockito.mock(HttpFields.Mutable.class);
+		private final Callback callback = Mockito.mock(Callback.class);
+		private final String reason;
+		private byte[] content;
 
-		// Act:
-		context.handle();
-
-		// Assert:
-		MatcherAssert.assertThat(context.getOutputStreamContent().endsWith("\r\n"), IsEqual.equalTo(true));
-	}
-
-	@Test
-	public void jsonBodyIsCorrectWhenReasonIsProvided() throws Exception {
-		// Arrange:
-		final Response mockResponse = Mockito.mock(Response.class);
-		Mockito.when(mockResponse.getReason()).thenReturn("badness");
-
-		final TestContext context = new TestContext("GET", mockResponse);
-		Mockito.when(context.getResponse().getStatus()).thenReturn(123);
-
-		// Act:
-		context.handle();
-		final ErrorResponse response = context.getErrorResponse();
-
-		// Assert:
-		MatcherAssert.assertThat(response.getTimeStamp(), IsEqual.equalTo(CURRENT_TIME));
-		MatcherAssert.assertThat(response.getStatus(), IsEqual.equalTo(123));
-		MatcherAssert.assertThat(response.getMessage(), IsEqual.equalTo("badness"));
-	}
-
-	@Test
-	public void jsonBodyIsCorrectWhenReasonIsNotProvided() throws Exception {
-		// Arrange:
-		final TestContext context = new TestContext("GET");
-		Mockito.when(context.getResponse().getStatus()).thenReturn(123);
-
-		// Act:
-		context.handle();
-		final ErrorResponse response = context.getErrorResponse();
-
-		// Assert:
-		MatcherAssert.assertThat(response.getTimeStamp(), IsEqual.equalTo(CURRENT_TIME));
-		MatcherAssert.assertThat(response.getStatus(), IsEqual.equalTo(123));
-		MatcherAssert.assertThat(response.getMessage(), IsNull.nullValue());
-	}
-
-	// region MockServletOutputStream
-
-	private static class MockServletOutputStream extends ServletOutputStream {
-
-		private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
-
-		@Override
-		public void write(final int i) throws IOException {
-			this.stream.write(i);
+		private TestContext(final String reason, final String cacheControl) throws IOException {
+			this.reason = reason;
+			this.handler.setCacheControl(cacheControl);
+			Mockito.when(this.response.getHeaders()).thenReturn(this.headers);
+			Mockito.when(this.response.getStatus()).thenReturn(123);
+			Mockito.doAnswer(invocation -> {
+				final ByteBuffer buffer = invocation.getArgument(1);
+				this.content = new byte[buffer.remaining()];
+				buffer.get(this.content);
+				return null;
+			}).when(this.response).write(Mockito.eq(true), Mockito.any(ByteBuffer.class), Mockito.eq(this.callback));
 		}
 
-		@Override
-		public boolean isReady() {
-			return false;
+		private void handle() throws IOException {
+			this.handler.generate(this.request, this.response, 123, this.reason, this.callback);
 		}
 
-		@Override
-		public void setWriteListener(final WriteListener writeListener) {
+		private String body() {
+			return new String(this.content, StandardCharsets.ISO_8859_1);
 		}
 
-		public String getContent() {
-			return this.stream.toString();
-		}
-	}
-
-	// endregion
-
-	// region TestContext
-
-	private static class TestContext {
-		private final TimeProvider timeProvider = Mockito.mock(TimeProvider.class);
-		private final JsonErrorHandler handler = new JsonErrorHandler(this.timeProvider);
-		private final Request mockBaseRequest = Mockito.mock(Request.class);
-		private final HttpServletRequest mockRequest = Mockito.mock(HttpServletRequest.class);
-		private final MockServletOutputStream outputStream = new MockServletOutputStream();
-		private final HttpServletResponse mockResponse;
-
-		public TestContext(final String httpMethod) throws IOException {
-			this(httpMethod, Mockito.mock(HttpServletResponse.class));
-		}
-
-		public TestContext(final String httpMethod, final HttpServletResponse response) throws IOException {
-			Mockito.when(this.timeProvider.getCurrentTime()).thenReturn(CURRENT_TIME);
-
-			this.mockResponse = response;
-			Mockito.when(this.getRequest().getMethod()).thenReturn(httpMethod);
-			Mockito.when(this.getResponse().getOutputStream()).thenReturn(this.outputStream);
-		}
-
-		public void handle() throws Exception {
-			this.handler.handle("target", this.mockBaseRequest, this.mockRequest, this.mockResponse);
-		}
-
-		public JsonErrorHandler getErrorHandler() {
-			return this.handler;
-		}
-
-		public Request getBaseRequest() {
-			return this.mockBaseRequest;
-		}
-
-		public HttpServletRequest getRequest() {
-			return this.mockRequest;
-		}
-
-		public HttpServletResponse getResponse() {
-			return this.mockResponse;
-		}
-
-		public String getOutputStreamContent() {
-			return this.outputStream.getContent();
-		}
-
-		public ErrorResponse getErrorResponse() {
-			final String jsonString = this.outputStream.getContent();
-			final Deserializer deserializer = new JsonDeserializer((JSONObject) JSONValue.parse(jsonString), null);
+		private ErrorResponse errorResponse() {
+			final Deserializer deserializer = new JsonDeserializer((JSONObject) JSONValue.parse(this.body()), null);
 			return new ErrorResponse(deserializer);
 		}
 	}
 
-	// endregion
+	private static final class ExposedJsonErrorHandler extends JsonErrorHandler {
+		private ExposedJsonErrorHandler(final TimeProvider provider) {
+			super(provider);
+		}
+
+		private void generate(final Request request, final Response response, final int status, final String message, final Callback callback)
+				throws IOException {
+			super.generateResponse(request, response, status, message, null, callback);
+		}
+	}
 }

@@ -16,10 +16,11 @@ import org.nem.nis.mappers.AccountDaoLookupAdapter;
 import org.nem.nis.test.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
 @ContextConfiguration(classes = TestConf.class)
-@RunWith(SpringJUnit4ClassRunner.class)
+@SuppressWarnings("deprecation")
+@RunWith(SpringRunner.class)
 public class BlockLoaderTest {
 	@Autowired
 	private AccountDao accountDao;

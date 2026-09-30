@@ -22,11 +22,11 @@ import org.nem.nis.state.AccountState;
 import org.nem.nis.test.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
 @ContextConfiguration(classes = TestConf.class)
-@RunWith(SpringJUnit4ClassRunner.class)
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({ "deprecation", "rawtypes" })
+@RunWith(SpringRunner.class)
 public class TransferDaoTest {
 	private static final int USE_HASH = 1;
 	private static final int USE_ID = 2;

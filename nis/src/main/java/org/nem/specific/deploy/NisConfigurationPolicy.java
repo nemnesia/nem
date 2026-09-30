@@ -1,6 +1,6 @@
 package org.nem.specific.deploy;
 
-import javax.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServlet;
 import org.nem.deploy.*;
 import org.nem.specific.deploy.appconfig.NisAppConfig;
 

@@ -1,8 +1,8 @@
 package org.nem.deploy.server;
 
-import javax.servlet.*;
-import javax.servlet.annotation.WebListener;
-import javax.servlet.http.HttpServlet;
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebListener;
+import jakarta.servlet.http.HttpServlet;
 import org.eclipse.jetty.server.*;
 import org.nem.deploy.*;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -72,6 +72,7 @@ public class NemServerBootstrapper extends AbstractServerBootstrapper {
 					new DispatcherServlet(webCtx));
 			dispatcher.setLoadOnStartup(1);
 			dispatcher.addMapping(String.format("%s%s", this.configuration.getApiContext(), "/*"));
+			dispatcher.setAsyncSupported(true);
 
 			if (this.configuration.isNcc()) {
 				final String contextMapping = String.format("%s/*", this.configuration.getWebContext());

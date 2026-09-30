@@ -1,7 +1,7 @@
 package org.nem.nis.controller;
 
 import java.util.Arrays;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.nem.nis.cache.ReadOnlyAccountStateCache;
 import org.nem.nis.controller.interceptors.*;
 import org.nem.specific.deploy.NisConfiguration;

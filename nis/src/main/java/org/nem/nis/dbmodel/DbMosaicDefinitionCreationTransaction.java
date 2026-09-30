@@ -1,6 +1,6 @@
 package org.nem.nis.dbmodel;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import org.hibernate.annotations.Cascade;
 
 /**
@@ -15,8 +15,7 @@ public class DbMosaicDefinitionCreationTransaction extends AbstractBlockTransfer
 	@JoinColumn(name = "mosaicDefinitionId")
 	private DbMosaicDefinition mosaicDefinition;
 
-	@ManyToOne
-	@Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+	@ManyToOne(cascade = { jakarta.persistence.CascadeType.PERSIST, jakarta.persistence.CascadeType.MERGE })
 	@JoinColumn(name = "creationFeeSinkId")
 	private DbAccount creationFeeSink;
 

@@ -16,10 +16,11 @@ import org.nem.nis.dbmodel.DbNamespace;
 import org.nem.nis.test.DbTestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
 @ContextConfiguration(classes = TestConf.class)
-@RunWith(SpringJUnit4ClassRunner.class)
+@SuppressWarnings("deprecation")
+@RunWith(SpringRunner.class)
 public class NamespaceRetrieverTest {
 
 	@Autowired
@@ -341,20 +342,20 @@ public class NamespaceRetrieverTest {
 			levels[2] = "";
 			fullName = levels[0];
 			statement = createSQLStatement(fullName, i / 2 + 1, i * 100 + 1, 0);
-			this.session.createSQLQuery(statement).executeUpdate();
+			this.session.createNativeMutationQuery(statement).executeUpdate();
 			for (int j = 0; j < 10; j++) {
 				levels[1] += "b";
 				levels[2] = "";
 				fullName = levels[0] + "." + levels[1];
 				expiryHeight = i * 100 + j * 10;
 				statement = createSQLStatement(fullName, i / 2 + 1, expiryHeight + 1, 1);
-				this.session.createSQLQuery(statement).executeUpdate();
+				this.session.createNativeMutationQuery(statement).executeUpdate();
 				for (int k = 0; k < 10; k++) {
 					levels[2] += "c";
 					fullName = levels[0] + "." + levels[1] + "." + levels[2];
 					expiryHeight = i * 100 + j * 10 + k;
 					statement = createSQLStatement(fullName, i / 2 + 1, expiryHeight + 1, 2);
-					this.session.createSQLQuery(statement).executeUpdate();
+					this.session.createNativeMutationQuery(statement).executeUpdate();
 				}
 			}
 		}
@@ -362,13 +363,13 @@ public class NamespaceRetrieverTest {
 		// Arrange: in order for paging to work correctly, transactions must be added in temporal order
 		// - add a "renewal" to "aaa" AFTER the original entry
 		statement = createSQLStatement("aaa", 3, 2000, 0);
-		this.session.createSQLQuery(statement).executeUpdate();
+		this.session.createNativeMutationQuery(statement).executeUpdate();
 		statement = createSQLStatement("aaa.b", 3, 2000, 1);
-		this.session.createSQLQuery(statement).executeUpdate();
+		this.session.createNativeMutationQuery(statement).executeUpdate();
 
 		// - add a "renewal" to "aaaaaaa" BEFORE the original entry
 		statement = createSQLStatement("aaaaaaa", 4, 5000, 0);
-		this.session.createSQLQuery(statement).executeUpdate();
+		this.session.createNativeMutationQuery(statement).executeUpdate();
 	}
 
 	private static String createSQLStatement(final String fullName, final long ownerId, final long height, final int level) {
@@ -382,7 +383,7 @@ public class NamespaceRetrieverTest {
 			final Address address = Address.fromPublicKey(publicKey);
 			final String statement = String.format("Insert into accounts (printableKey, publicKey) values('%s', X'%s')", address.toString(),
 					publicKey.toString());
-			this.session.createSQLQuery(statement).executeUpdate();
+			this.session.createNativeMutationQuery(statement).executeUpdate();
 		}
 	}
 }

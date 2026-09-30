@@ -2,7 +2,7 @@ package org.nem.nis.dao.retrievers;
 
 import java.util.*;
 import org.hibernate.*;
-import org.hibernate.criterion.*;
+import org.hibernate.query.Query;
 import org.nem.core.model.namespace.NamespaceId;
 import org.nem.nis.dao.HibernateUtils;
 import org.nem.nis.dbmodel.DbNamespace;
@@ -31,14 +31,15 @@ public class NamespaceRetriever {
 			return Collections.emptyList();
 		}
 
-		final Criteria criteria = session.createCriteria(DbNamespace.class) // preserve-newline
-				.add(Restrictions.eq("owner.id", accountId)) // preserve-newline
-				.setMaxResults(limit);
+		String hql = "select n from DbNamespace n where n.owner.id = :ownerId";
 		if (null != parent) {
-			criteria.add(Restrictions.like("fullName", parent.toString() + ".", MatchMode.START));
+			hql += " and n.fullName like :prefix";
 		}
-
-		final List<DbNamespace> dbNamespaces = HibernateUtils.listAndCast(criteria);
+		final Query<DbNamespace> query = session.createQuery(hql, DbNamespace.class).setParameter("ownerId", accountId).setMaxResults(limit);
+		if (null != parent) {
+			query.setParameter("prefix", parent.toString() + ".%");
+		}
+		final List<DbNamespace> dbNamespaces = query.getResultList();
 		final HashMap<String, DbNamespace> map = new HashMap<>();
 		dbNamespaces.forEach(n -> {
 			// note: hibernate will throw a StaleStateException upon flushing the session if we modify the original dbNamespace object
@@ -63,10 +64,8 @@ public class NamespaceRetriever {
 			return null;
 		}
 
-		final Criteria criteria = session.createCriteria(DbNamespace.class) // preserve-newline
-				.add(Restrictions.eq("fullName", id.toString()));
-
-		final List<DbNamespace> dbNamespaces = HibernateUtils.listAndCast(criteria);
+		final List<DbNamespace> dbNamespaces = session.createQuery("select n from DbNamespace n where n.fullName = :name", DbNamespace.class)
+				.setParameter("name", id.toString()).getResultList();
 		if (dbNamespaces.isEmpty()) {
 			return null;
 		}
@@ -90,7 +89,7 @@ public class NamespaceRetriever {
 				+ "AND id < :maxId " // preserve-newline
 				+ "ORDER BY id DESC " // preserve-newline
 				+ "LIMIT :limit";
-		final Query query = session.createSQLQuery(queryString) // preserve-newline
+		final Query query = session.createNativeQuery(queryString) // preserve-newline
 				.addEntity(DbNamespace.class) // preserve-newline
 				.setParameter("maxId", maxId) // preserve-newline
 				.setParameter("limit", limit);
@@ -98,10 +97,9 @@ public class NamespaceRetriever {
 	}
 
 	private static HashMap<String, DbNamespace> getCurrentRootNamespacesForAccount(final Session session, final Long accountId) {
-		final Criteria criteria = session.createCriteria(DbNamespace.class) // preserve-newline
-				.add(Restrictions.eq("owner.id", accountId)) // preserve-newline
-				.add(Restrictions.eq("level", 0));
-		final List<DbNamespace> roots = HibernateUtils.listAndCast(criteria);
+		final List<DbNamespace> roots = session.createQuery(
+				"select n from DbNamespace n where n.owner.id = :ownerId and n.level = 0", DbNamespace.class)
+				.setParameter("ownerId", accountId).getResultList();
 		final HashMap<String, DbNamespace> map = new HashMap<>();
 		roots.forEach(n -> {
 			final DbNamespace current = map.get(n.getFullName());
@@ -115,10 +113,8 @@ public class NamespaceRetriever {
 
 	private static DbNamespace getCurrentRootNamespace(final Session session, final NamespaceId id) {
 		final String rootName = id.getRoot().toString();
-		final Criteria criteria = session.createCriteria(DbNamespace.class) // preserve-newline
-				.add(Restrictions.eq("fullName", rootName)) // preserve-newline
-				.addOrder(Order.desc("height"));
-		final List<DbNamespace> roots = HibernateUtils.listAndCast(criteria);
+		final List<DbNamespace> roots = session.createQuery("select n from DbNamespace n where n.fullName = :name order by n.height desc",
+				DbNamespace.class).setParameter("name", rootName).getResultList();
 		return roots.isEmpty() ? null : roots.get(0);
 	}
 

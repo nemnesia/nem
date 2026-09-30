@@ -1,6 +1,6 @@
 package org.nem.nis.dbmodel;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import org.hibernate.annotations.Cascade;
 import org.nem.core.crypto.Hash;
 
@@ -20,8 +20,7 @@ public abstract class AbstractTransfer {
 	private Integer timeStamp;
 	private Integer deadline;
 
-	@ManyToOne
-	@Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+	@ManyToOne(cascade = { jakarta.persistence.CascadeType.PERSIST, jakarta.persistence.CascadeType.MERGE })
 	@JoinColumn(name = "senderId")
 	private DbAccount sender;
 	private byte[] senderProof;
