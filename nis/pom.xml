@@ -13,8 +13,8 @@
         <nemCodeBase>http://bob.nem.ninja/</nemCodeBase>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jetty.version>12.1.13</jetty.version>
-        <spring.version>5.3.39</spring.version>
-        <hibernate.version>5.4.33.Final</hibernate.version>
+        <spring.version>7.0.9</spring.version>
+        <hibernate.version>7.2.25.Final</hibernate.version>
     </properties>
 
     <dependencies>
@@ -85,8 +85,8 @@
 
         <!-- jetty -->
         <dependency>
-            <groupId>org.eclipse.jetty.ee8.websocket</groupId>
-            <artifactId>jetty-ee8-websocket-javax-server</artifactId>
+            <groupId>org.eclipse.jetty.ee11.websocket</groupId>
+            <artifactId>jetty-ee11-websocket-jakarta-server</artifactId>
             <version>${jetty.version}</version>
         </dependency>
 
@@ -129,7 +129,7 @@
 
         <!-- hibernate -->
         <dependency>
-            <groupId>org.hibernate</groupId>
+            <groupId>org.hibernate.orm</groupId>
             <artifactId>hibernate-core</artifactId>
             <version>${hibernate.version}</version>
             <exclusions>
@@ -142,12 +142,12 @@
         <dependency>
             <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator</artifactId>
-            <version>6.2.5.Final</version>
+            <version>9.1.4.Final</version>
         </dependency>
         <dependency>
-            <groupId>org.glassfish</groupId>
-            <artifactId>jakarta.el</artifactId>
-            <version>3.0.3</version>
+            <groupId>org.glassfish.expressly</groupId>
+            <artifactId>expressly</artifactId>
+            <version>6.0.0</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>

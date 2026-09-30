@@ -50,10 +50,15 @@ public final class RawMapperUtils {
 	 * @return The Long value.
 	 */
 	public static Long castToLong(final Object value) {
-		return castBigIntegerToLong((BigInteger) value);
-	}
-
-	private static Long castBigIntegerToLong(final BigInteger value) {
-		return null == value ? null : value.longValue();
+		if (null == value) {
+			return null;
+		}
+		if (value instanceof BigInteger) {
+			return ((BigInteger) value).longValue();
+		}
+		if (value instanceof Number) {
+			return ((Number) value).longValue();
+		}
+		throw new ClassCastException("Expected a numeric native-query result but got " + value.getClass().getName());
 	}
 }

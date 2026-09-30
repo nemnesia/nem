@@ -1,6 +1,6 @@
 package org.nem.nis.dbmodel;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import org.hibernate.annotations.Cascade;
 
 /**
@@ -10,8 +10,7 @@ import org.hibernate.annotations.Cascade;
 @Entity
 @Table(name = "importancetransfers")
 public class DbImportanceTransferTransaction extends AbstractBlockTransfer<DbImportanceTransferTransaction> {
-	@ManyToOne
-	@Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+	@ManyToOne(cascade = { jakarta.persistence.CascadeType.PERSIST, jakarta.persistence.CascadeType.MERGE })
 	@JoinColumn(name = "remoteId")
 	private DbAccount remote;
 

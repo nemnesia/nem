@@ -2,7 +2,6 @@ package org.nem.nis.dao.retrievers;
 
 import java.util.*;
 import org.hibernate.*;
-import org.hibernate.criterion.*;
 import org.nem.core.model.*;
 import org.nem.core.model.mosaic.MosaicId;
 import org.nem.core.model.namespace.NamespaceId;
@@ -88,52 +87,33 @@ public class MosaicSupplyRetriever {
 
 	private static List<DbMosaicDefinitionCreationTransaction> queryCreationTransactions(final Session session, final MosaicId mosaicId,
 			final Long height) {
-		final Criteria creationTransactionsCriteria = session.createCriteria(DbMosaicDefinitionCreationTransaction.class, "transaction") // preserve-newline
-				.setFetchMode("sender", FetchMode.JOIN) // preserve-newline
-				.createAlias("transaction.block", "block") // preserve-newline
-				.createAlias("transaction.mosaicDefinition", "mosaicDefinition") // preserve-newline
-				.add(Restrictions.eq("mosaicDefinition.namespaceId", mosaicId.getNamespaceId().toString())) // preserve-newline
-				.add(Restrictions.eq("mosaicDefinition.name", mosaicId.getName())) // preserve-newline
-				.add(Restrictions.le("block.height", height)) // preserve-newline
-				.addOrder(Order.desc("block.height")) // preserve-newline
-				.addOrder(Order.desc("blkIndex")) // preserve-newline
-				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY);
-		return HibernateUtils.listAndCast(creationTransactionsCriteria);
+		final String hql = "select t from DbMosaicDefinitionCreationTransaction t join fetch t.sender join t.block b "
+				+ "join t.mosaicDefinition m where m.namespaceId = :namespaceId and m.name = :name and b.height <= :height "
+				+ "order by b.height desc, t.blkIndex desc";
+		return session.createQuery(hql, DbMosaicDefinitionCreationTransaction.class)
+				.setParameter("namespaceId", mosaicId.getNamespaceId().toString()).setParameter("name", mosaicId.getName())
+				.setParameter("height", height).getResultList();
 	}
 
 	private static List<DbMosaicSupplyChangeTransaction> querySupplyChangeTransactions(final Session session,
 			final Collection<Long> dbMosaicDefinitionIds, final Long startHeight, final Long endHeight) {
-		final Criteria supplyChangeTransactionCriteria = session.createCriteria(DbMosaicSupplyChangeTransaction.class, "transaction") // preserve-newline
-				.setFetchMode("sender", FetchMode.JOIN) // preserve-newline
-				.createAlias("transaction.block", "block") // preserve-newline
-				.add(Restrictions.in("dbMosaicId", dbMosaicDefinitionIds)) // preserve-newline
-				.add(Restrictions.ge("block.height", startHeight)) // preserve-newline
-				.add(Restrictions.le("block.height", endHeight)) // preserve-newline
-				.addOrder(Order.desc("block.height")) // preserve-newline
-				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY);
-		return HibernateUtils.listAndCast(supplyChangeTransactionCriteria);
+		final String hql = "select t from DbMosaicSupplyChangeTransaction t join fetch t.sender join t.block b "
+				+ "where t.dbMosaicId in :definitionIds and b.height >= :startHeight and b.height <= :endHeight order by b.height desc";
+		return session.createQuery(hql, DbMosaicSupplyChangeTransaction.class).setParameter("definitionIds", dbMosaicDefinitionIds)
+				.setParameter("startHeight", startHeight).setParameter("endHeight", endHeight).getResultList();
 	}
 
 	private static DbNamespace queryLastRootNamespace(final Session session, final String namespaceId, final Long maxHeight) {
 		final NamespaceId rootNamespaceId = new NamespaceId(namespaceId).getRoot();
-		final Criteria namespaceCriteria = session.createCriteria(DbNamespace.class, "namespace") // preserve-newline
-				.add(Restrictions.eq("fullName", rootNamespaceId.toString())) // preserve-newline
-				.add(Restrictions.lt("height", maxHeight)) // preserve-newline
-				.addOrder(Order.desc("height")) // preserve-newline
-				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY) // preserve-newline
-				.setMaxResults(1);
-		final List<DbNamespace> namespaces = HibernateUtils.listAndCast(namespaceCriteria);
-		return namespaces.get(0);
+		return session.createQuery("select n from DbNamespace n where n.fullName = :name and n.height < :height order by n.height desc",
+				DbNamespace.class).setParameter("name", rootNamespaceId.toString()).setParameter("height", maxHeight)
+				.setMaxResults(1).getSingleResultOrNull();
 	}
 
 	private static List<DbNamespace> querySubsequentRootNamespaces(final Session session, final String namespaceId, final Long minHeight) {
 		final NamespaceId rootNamespaceId = new NamespaceId(namespaceId).getRoot();
-		final Criteria namespaceCriteria = session.createCriteria(DbNamespace.class, "namespace") // preserve-newline
-				.add(Restrictions.eq("fullName", rootNamespaceId.toString())) // preserve-newline
-				.add(Restrictions.gt("height", minHeight)) // preserve-newline
-				.addOrder(Order.asc("height")) // preserve-newline
-				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY); // preserve-newline
-		return HibernateUtils.listAndCast(namespaceCriteria);
+		return session.createQuery("select n from DbNamespace n where n.fullName = :name and n.height > :height order by n.height asc",
+				DbNamespace.class).setParameter("name", rootNamespaceId.toString()).setParameter("height", minHeight).getResultList();
 	}
 
 	private Long findExpirationHeight(final Session session, final String namespaceId, final Long height) {

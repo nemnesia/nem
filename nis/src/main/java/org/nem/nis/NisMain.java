@@ -4,7 +4,7 @@ import java.util.EnumSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import org.nem.core.crypto.*;
 import org.nem.core.model.*;
 import org.nem.core.node.*;

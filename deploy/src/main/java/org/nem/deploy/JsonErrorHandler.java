@@ -1,12 +1,13 @@
 package org.nem.deploy;
 
-import java.io.*;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import javax.servlet.http.*;
 import org.eclipse.jetty.http.*;
-import org.eclipse.jetty.ee8.nested.ErrorHandler;
-import org.eclipse.jetty.ee8.nested.Request;
-import org.eclipse.jetty.ee8.nested.Response;
+import org.eclipse.jetty.ee11.servlet.ErrorHandler;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.Callback;
 import org.nem.core.connect.ErrorResponse;
 import org.nem.core.serialization.JsonSerializer;
 import org.nem.core.time.TimeProvider;
@@ -29,37 +30,17 @@ public class JsonErrorHandler extends ErrorHandler {
 	}
 
 	@Override
-	public void handle(final String target, final Request baseRequest, final HttpServletRequest request, final HttpServletResponse response)
-			throws IOException, javax.servlet.ServletException {
-		// note: handle needs to be overridden instead of something more specific like handleErrorPage
-		// because we need to set the content type to application/json and this is the only way to do that.
-		// the rest of the implementation comes from the reflected base class.
-
-		final String method = request.getMethod();
-		if (!HttpMethod.GET.is(method) && !HttpMethod.POST.is(method) && !HttpMethod.HEAD.is(method)) {
-			baseRequest.setHandled(true);
-			return;
-		}
-
-		baseRequest.setHandled(true);
-		response.setContentType(MimeTypes.Type.APPLICATION_JSON.asString());
+	protected void generateResponse(final Request request, final Response response, final int code, final String message,
+			final Throwable cause, final Callback callback) throws IOException {
+		final ErrorResponse errorResponse = new ErrorResponse(this.timeProvider.getCurrentTime(), message, code);
+		final byte[] content = (JsonSerializer.serializeToJson(errorResponse).toJSONString() + "\r\n")
+				.getBytes(StandardCharsets.ISO_8859_1);
+		response.setStatus(code);
+		response.getHeaders().put(HttpHeader.CONTENT_TYPE, MimeTypes.Type.APPLICATION_JSON.asString());
+		response.getHeaders().put(HttpHeader.CONTENT_LENGTH, content.length);
 		if (null != this.getCacheControl()) {
-			response.setHeader(HttpHeader.CACHE_CONTROL.asString(), this.getCacheControl());
+			response.getHeaders().put(HttpHeader.CACHE_CONTROL, this.getCacheControl());
 		}
-
-		final StringWriter writer = new StringWriter(4096);
-		final String reason = (response instanceof Response) ? ((Response) response).getReason() : null;
-		this.handleErrorPage(request, writer, response.getStatus(), reason);
-		final byte[] content = writer.toString().getBytes(StandardCharsets.ISO_8859_1);
-		response.setContentLength(content.length);
-		response.getOutputStream().write(content);
-	}
-
-	@Override
-	public void handleErrorPage(final HttpServletRequest request, final Writer writer, final int code, final String message)
-			throws IOException {
-		final ErrorResponse response = new ErrorResponse(this.timeProvider.getCurrentTime(), message, code);
-		final String jsonString = JsonSerializer.serializeToJson(response).toJSONString();
-		writer.write(jsonString + "\r\n");
+		response.write(true, ByteBuffer.wrap(content), callback);
 	}
 }

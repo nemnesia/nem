@@ -2,15 +2,14 @@ package org.nem.nis.controller.interceptors;
 
 import java.util.List;
 import java.util.logging.Logger;
-import javax.servlet.http.*;
+import jakarta.servlet.http.*;
 import org.nem.nis.audit.AuditCollection;
-import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
+import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
  * Interceptor that audits requests.
  */
-@SuppressWarnings("deprecation")
-public class AuditInterceptor extends HandlerInterceptorAdapter {
+public class AuditInterceptor implements HandlerInterceptor {
 	private static final Logger LOGGER = Logger.getLogger(AuditInterceptor.class.getName());
 
 	private final List<String> ignoredApiPaths;

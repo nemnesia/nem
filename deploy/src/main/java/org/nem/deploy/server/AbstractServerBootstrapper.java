@@ -1,14 +1,14 @@
 package org.nem.deploy.server;
 
-import javax.servlet.ServletContextListener;
+import jakarta.servlet.ServletContextListener;
 import org.eclipse.jetty.server.*;
-import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee8.annotations.AnnotationConfiguration;
-import org.eclipse.jetty.ee8.plus.webapp.EnvConfiguration;
-import org.eclipse.jetty.ee8.plus.webapp.PlusConfiguration;
+import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee11.annotations.AnnotationConfiguration;
+import org.eclipse.jetty.ee11.plus.webapp.EnvConfiguration;
+import org.eclipse.jetty.ee11.plus.webapp.PlusConfiguration;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.thread.*;
-import org.eclipse.jetty.ee8.webapp.Configurations;
+import org.eclipse.jetty.ee11.webapp.Configurations;
 import org.nem.deploy.*;
 import org.springframework.web.context.ContextLoaderListener;
 
@@ -67,12 +67,12 @@ public abstract class AbstractServerBootstrapper {
 
 		if (this.configuration.isNcc()) {
 			final Configurations configurations = Configurations.setServerDefault(server);
-			final int fragmentIndex = configurationIndex(configurations, org.eclipse.jetty.ee8.webapp.FragmentConfiguration.class);
+			final int fragmentIndex = configurationIndex(configurations, org.eclipse.jetty.ee11.webapp.FragmentConfiguration.class);
 			if (fragmentIndex >= 0) {
 				configurations.add(fragmentIndex + 1, new EnvConfiguration());
 				configurations.add(fragmentIndex + 2, new PlusConfiguration());
 			}
-			final int jettyXmlIndex = configurationIndex(configurations, org.eclipse.jetty.ee8.webapp.JettyWebXmlConfiguration.class);
+			final int jettyXmlIndex = configurationIndex(configurations, org.eclipse.jetty.ee11.webapp.JettyWebXmlConfiguration.class);
 			if (jettyXmlIndex >= 0) {
 				configurations.add(jettyXmlIndex, new AnnotationConfiguration());
 			}

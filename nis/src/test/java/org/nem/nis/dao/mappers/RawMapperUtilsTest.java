@@ -109,5 +109,14 @@ public class RawMapperUtilsTest {
 		MatcherAssert.assertThat(value, IsEqual.equalTo(5L));
 	}
 
+	@Test
+	public void castToLongMapsHibernate7LongScalarToNonNullLong() {
+		// Hibernate 5 returned BigInteger for the affected native scalar columns;
+		// Hibernate 7 resolves the same SQL scalar as Long.
+		final Long value = RawMapperUtils.castToLong(5L);
+
+		MatcherAssert.assertThat(value, IsEqual.equalTo(5L));
+	}
+
 	// endregion
 }

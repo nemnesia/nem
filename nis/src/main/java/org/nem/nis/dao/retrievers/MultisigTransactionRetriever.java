@@ -3,8 +3,7 @@ package org.nem.nis.dao.retrievers;
 import java.util.*;
 import java.util.stream.*;
 import org.hibernate.*;
-import org.hibernate.criterion.*;
-import org.hibernate.type.LongType;
+import org.hibernate.query.Query;
 import org.nem.nis.dao.*;
 import org.nem.nis.dbmodel.*;
 import org.nem.nis.mappers.TransactionRegistry;
@@ -54,9 +53,9 @@ public class MultisigTransactionRetriever implements TransactionRetriever {
 				+ " WHERE accountId=%d AND type=%d AND transactionId < %d " // preserve-newline
 				+ "ORDER BY accountId asc, type asc, transactionId DESC";
 		final String preQueryString = String.format(preQueryTemplate, accountId, type, maxId);
-		final Query preQuery = session.createSQLQuery(preQueryString) // preserve-newline
-				.addScalar("transactionId", LongType.INSTANCE) // preserve-newline
-				.addScalar("height", LongType.INSTANCE) // preserve-newline
+		final Query preQuery = session.createNativeQuery(preQueryString) // preserve-newline
+				.addScalar("transactionId", Long.class) // preserve-newline
+				.addScalar("height", Long.class) // preserve-newline
 				.setMaxResults(limit);
 		final List<Object[]> list = HibernateUtils.listAndCast(preQuery);
 		return list.stream().map(o -> new TransactionIdBlockHeightPair((Long) o[0], (Long) o[1])).collect(Collectors.toList());
@@ -64,14 +63,10 @@ public class MultisigTransactionRetriever implements TransactionRetriever {
 
 	private List<DbMultisigTransaction> getMultisigTransactions(final Session session, final List<TransactionIdBlockHeightPair> pairs,
 			final String joinEntity) {
-		final Criteria criteria = session.createCriteria(DbMultisigTransaction.class) // preserve-newline
-				.setFetchMode(joinEntity, FetchMode.JOIN) // preserve-newline
-				.add(Restrictions.in("id", pairs.stream().map(p -> p.transactionId).collect(Collectors.toList()))) // preserve-newline
-				.add(Restrictions.isNotNull(joinEntity)) // preserve-newline
-				.addOrder(Order.desc("id"));
-		criteria.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY);
-
-		final List<DbMultisigTransaction> result = HibernateUtils.listAndCast(criteria);
+		final String hql = "select distinct t from DbMultisigTransaction t join fetch t." + joinEntity
+				+ " where t.id in :ids and t." + joinEntity + " is not null order by t.id desc";
+		final List<Long> ids = pairs.stream().map(p -> p.transactionId).collect(Collectors.toList());
+		final List<DbMultisigTransaction> result = session.createQuery(hql, DbMultisigTransaction.class).setParameter("ids", ids).getResultList();
 		// we deliberately set multisigSignatureTransactions to lazy, to avoid
 		// duplicates inside other entities within current "joinEntity"
 		// (i.e. TransferTransaction holds mosaics, so each mosaic would get duplicated
@@ -85,10 +80,9 @@ public class MultisigTransactionRetriever implements TransactionRetriever {
 
 	private HashMap<Long, DbBlock> getBlockMap(final Session session, final List<TransactionIdBlockHeightPair> pairs) {
 		final HashMap<Long, DbBlock> blockMap = new HashMap<>();
-		final Criteria criteria = session.createCriteria(DbBlock.class) // preserve-newline
-				.add(Restrictions.in("height", pairs.stream().map(p -> p.blockHeight).collect(Collectors.toList()))) // preserve-newline
-				.addOrder(Order.desc("height"));
-		final List<DbBlock> blocks = HibernateUtils.listAndCast(criteria);
+		final List<Long> heights = pairs.stream().map(p -> p.blockHeight).collect(Collectors.toList());
+		final List<DbBlock> blocks = session.createQuery("select b from DbBlock b where b.height in :heights order by b.height desc", DbBlock.class)
+				.setParameter("heights", heights).getResultList();
 		blocks.stream().forEach(b -> blockMap.put(b.getHeight(), b));
 		return blockMap;
 	}

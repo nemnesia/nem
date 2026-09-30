@@ -14,7 +14,8 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.*;
 
 @ContextConfiguration(classes = TestConf.class)
-@RunWith(SpringJUnit4ClassRunner.class)
+@SuppressWarnings("deprecation")
+@RunWith(SpringRunner.class)
 public class AccountDaoTest extends AbstractTransactionalJUnit4SpringContextTests {
 	@Autowired
 	private SessionFactory sessionFactory;
@@ -53,7 +54,9 @@ public class AccountDaoTest extends AbstractTransactionalJUnit4SpringContextTest
 		// Arrange
 		final Account account = Utils.generateRandomAccount();
 		final DbAccount dbAccount = new DbAccount(account.getAddress());
-		this.session.saveOrUpdate(dbAccount);
+		final Transaction transaction = this.session.beginTransaction();
+		this.session.persist(dbAccount);
+		transaction.commit();
 
 		// Act:
 		final DbAccount entity = this.accountDao.getAccountByPrintableAddress(dbAccount.getPrintableKey());

@@ -2,13 +2,13 @@ package org.nem.nis.validation;
 
 import java.math.BigInteger;
 import java.util.Set;
-import javax.validation.ConstraintViolation;
-import javax.validation.Validation;
-import javax.validation.Validator;
-import javax.validation.ValidatorFactory;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.hibernate.validator.internal.util.Version;
 import org.junit.Test;
 import org.nem.core.crypto.PrivateKey;
@@ -20,8 +20,8 @@ import static org.junit.Assert.assertTrue;
 public class HibernateValidatorCompatibilityTest {
 	@Test
 	public void defaultBeanValidationFactoryUsesHibernateValidatorAndStandardMessages() {
-		assertEquals("6.2.5.Final", Version.getVersionString());
-		assertEquals("javax.validation", Validator.class.getPackage().getName());
+		assertEquals("9.1.4.Final", Version.getVersionString());
+		assertEquals("jakarta.validation", Validator.class.getPackage().getName());
 
 		try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
 			final Validator validator = factory.getValidator();
@@ -37,9 +37,9 @@ public class HibernateValidatorCompatibilityTest {
 
 	@Test
 	public void defaultInterpolatorEvaluatesElAndResourceBundleTemplates() throws Exception {
-		final Class<?> expressionFactory = Class.forName("javax.el.ExpressionFactory");
+		final Class<?> expressionFactory = Class.forName("jakarta.el.ExpressionFactory");
 		final Object expressionFactoryInstance = expressionFactory.getMethod("newInstance").invoke(null);
-		assertTrue(expressionFactoryInstance.getClass().getName().startsWith("com.sun.el."));
+		assertTrue(expressionFactoryInstance.getClass().getName().startsWith("org.glassfish.expressly."));
 
 		try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
 			final Validator validator = factory.getValidator();

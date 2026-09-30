@@ -1,6 +1,6 @@
 package org.nem.nis.dbmodel;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 /**
  * Base class for all transfer db entities that are stored directly in blocks.

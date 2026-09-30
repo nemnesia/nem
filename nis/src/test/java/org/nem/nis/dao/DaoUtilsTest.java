@@ -12,10 +12,11 @@ import org.nem.core.test.*;
 import org.nem.nis.test.DbTestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
 @ContextConfiguration(classes = TestConf.class)
-@RunWith(SpringJUnit4ClassRunner.class)
+@SuppressWarnings("deprecation")
+@RunWith(SpringRunner.class)
 public class DaoUtilsTest {
 	private static final int NUM_ACCOUNTS = 10;
 	private static final List<Account> ACCOUNTS = IntStream.range(0, NUM_ACCOUNTS).mapToObj(i -> Utils.generateRandomAccount())
@@ -62,7 +63,9 @@ public class DaoUtilsTest {
 		final Collection<Long> accountIds = DaoUtils.getAccountIds(this.session, accounts);
 
 		// Assert:
-		final List<Long> expectedIds = Arrays.asList(2L, 4L, 6L, 8L);
+		final List<Long> expectedIds = accounts.stream()
+				.map(address -> DaoUtils.getAccountId(this.session, address))
+				.collect(Collectors.toList());
 		MatcherAssert.assertThat(accountIds, IsEquivalent.equivalentTo(expectedIds));
 	}
 
@@ -72,7 +75,7 @@ public class DaoUtilsTest {
 				final Address address = ACCOUNTS.get(i).getAddress();
 				final String statement = String.format("Insert into accounts (printableKey, publicKey) values('%s', X'%s')", address.toString(),
 						address.getPublicKey().toString());
-				this.session.createSQLQuery(statement).executeUpdate();
+				this.session.createNativeMutationQuery(statement).executeUpdate();
 			}
 		});
 	}

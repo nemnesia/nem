@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.*;
 import org.hibernate.*;
-import org.hibernate.type.LongType;
 import org.junit.*;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -25,14 +24,15 @@ import org.nem.nis.mappers.*;
 import org.nem.nis.test.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.*;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(Enclosed.class)
 @SuppressWarnings("rawtypes")
 public class BlockDaoTest {
 
 	@ContextConfiguration(classes = TestConf.class)
-	@RunWith(SpringJUnit4ClassRunner.class)
+	@SuppressWarnings("deprecation")
+@RunWith(SpringRunner.class)
 	private static abstract class Base {
 		@Autowired
 		protected AccountDao accountDao;
@@ -414,8 +414,7 @@ public class BlockDaoTest {
 
 		private long getScanCount(final String tableName) {
 			final Session session = this.sessionFactory.openSession();
-			final Long count = (Long) session.createSQLQuery("SELECT COUNT(*) as count FROM " + tableName)
-					.addScalar("count", LongType.INSTANCE).uniqueResult();
+			final Long count = session.createNativeQuery("SELECT COUNT(*) as count FROM " + tableName, Long.class).getSingleResult();
 			session.close();
 			return count;
 		}

@@ -1,7 +1,7 @@
 package org.nem.nis.controller;
 
 import java.util.logging.Logger;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.nem.core.model.*;
 import org.nem.core.serialization.*;
 import org.nem.nis.controller.annotations.P2PApi;

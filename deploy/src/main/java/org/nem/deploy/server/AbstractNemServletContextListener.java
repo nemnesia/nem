@@ -2,8 +2,8 @@ package org.nem.deploy.server;
 
 import java.io.IOException;
 import java.util.EnumSet;
-import javax.servlet.*;
-import javax.servlet.http.*;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 
@@ -90,7 +90,7 @@ public abstract class AbstractNemServletContextListener implements ServletContex
 	// region add filter
 
 	private static void addDosFilter(final ServletContext context) {
-		final javax.servlet.FilterRegistration.Dynamic filter = context.addFilter("DoSFilter", "org.eclipse.jetty.ee8.servlets.DoSFilter");
+		final jakarta.servlet.FilterRegistration.Dynamic filter = context.addFilter("DoSFilter", "org.eclipse.jetty.ee11.servlets.DoSFilter");
 		filter.setAsyncSupported(true);
 		filter.setInitParameter("maxRequestsPerSec", "50");
 		filter.setInitParameter("delayMs", "-1");
@@ -101,7 +101,7 @@ public abstract class AbstractNemServletContextListener implements ServletContex
 	}
 
 	private static void addCorsFilter(final ServletContext context) {
-		final javax.servlet.FilterRegistration.Dynamic filter = context.addFilter("cors filter", new Filter() {
+		final jakarta.servlet.FilterRegistration.Dynamic filter = context.addFilter("cors filter", new Filter() {
 			@Override
 			public void init(final FilterConfig filterConfig) {
 			}

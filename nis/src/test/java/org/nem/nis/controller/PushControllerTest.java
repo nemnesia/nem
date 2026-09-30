@@ -2,7 +2,7 @@ package org.nem.nis.controller;
 
 import java.util.Collection;
 import java.util.stream.*;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.nem.core.crypto.KeyPair;

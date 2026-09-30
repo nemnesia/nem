@@ -24,14 +24,15 @@ import org.nem.nis.state.AccountState;
 import org.nem.nis.test.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * Note that these tests are retrieving transactions by providing a topmost id, which means they depend on the order in which hibernate
  * saves the transactions to the db
  */
 @ContextConfiguration(classes = TestConf.class)
-@RunWith(SpringJUnit4ClassRunner.class)
+@SuppressWarnings("deprecation")
+@RunWith(SpringRunner.class)
 public abstract class TransactionRetrieverTest {
 	protected static final long TRANSACTIONS_PER_BLOCK = 34L;
 	private static final int LIMIT = 10;

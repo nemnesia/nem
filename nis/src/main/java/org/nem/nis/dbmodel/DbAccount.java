@@ -1,7 +1,7 @@
 package org.nem.nis.dbmodel;
 
 import java.util.Objects;
-import javax.persistence.*;
+import jakarta.persistence.*;
 import org.nem.core.crypto.PublicKey;
 import org.nem.core.model.Address;
 

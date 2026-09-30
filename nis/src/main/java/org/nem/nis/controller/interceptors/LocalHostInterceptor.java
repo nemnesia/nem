@@ -2,7 +2,7 @@ package org.nem.nis.controller.interceptors;
 
 import java.lang.reflect.Method;
 import java.util.logging.Logger;
-import javax.servlet.http.*;
+import jakarta.servlet.http.*;
 import org.nem.nis.controller.annotations.TrustedApi;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;

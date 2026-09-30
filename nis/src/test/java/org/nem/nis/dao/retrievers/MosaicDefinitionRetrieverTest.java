@@ -16,10 +16,11 @@ import org.nem.nis.dbmodel.DbMosaicDefinition;
 import org.nem.nis.test.DbTestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
 @ContextConfiguration(classes = TestConf.class)
-@RunWith(SpringJUnit4ClassRunner.class)
+@SuppressWarnings("deprecation")
+@RunWith(SpringRunner.class)
 public class MosaicDefinitionRetrieverTest {
 
 	@Autowired
@@ -222,7 +223,7 @@ public class MosaicDefinitionRetrieverTest {
 
 	private void addMosaicDefinitionToSession(final long creatorId, final String name, final String namespaceId, final String description) {
 		final String statement = createMosaicSQLStatement(creatorId, name, namespaceId, description);
-		this.session.createSQLQuery(statement).executeUpdate();
+		this.session.createNativeMutationQuery(statement).executeUpdate();
 		this.setupPropertiesForMosaicDefinition(creatorId);
 	}
 
@@ -235,7 +236,7 @@ public class MosaicDefinitionRetrieverTest {
 		};
 		IntStream.range(0, 4).forEach(i -> {
 			final String statement = createMosaicPropertiesSQLStatement(mosaicId, names[i], values[i]);
-			this.session.createSQLQuery(statement).executeUpdate();
+			this.session.createNativeMutationQuery(statement).executeUpdate();
 		});
 	}
 
@@ -255,7 +256,7 @@ public class MosaicDefinitionRetrieverTest {
 			final Address address = Utils.generateRandomAddressWithPublicKey();
 			final String statement = String.format("Insert into accounts (printableKey, publicKey) values('%s', X'%s')", address.toString(),
 					address.getPublicKey().toString());
-			this.session.createSQLQuery(statement).executeUpdate();
+			this.session.createNativeMutationQuery(statement).executeUpdate();
 		}
 	}
 }

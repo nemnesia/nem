@@ -2,10 +2,10 @@ package org.nem.nis.dbmodel;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import javax.persistence.*;
-import javax.persistence.CascadeType;
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.*;
 
 /**
@@ -32,7 +32,6 @@ public class DbMultisigTransaction extends AbstractBlockTransfer<DbMultisigTrans
 	private DbMultisigAggregateModificationTransaction multisigAggregateModificationTransaction;
 
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "multisigTransaction", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private Set<DbMultisigSignatureTransaction> multisigSignatureTransactions;
 
 	@OneToOne(optional = true, cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)

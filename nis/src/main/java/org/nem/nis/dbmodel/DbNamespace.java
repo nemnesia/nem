@@ -1,6 +1,6 @@
 package org.nem.nis.dbmodel;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import org.hibernate.annotations.Cascade;
 
 /**
@@ -16,8 +16,7 @@ public class DbNamespace {
 
 	private String fullName;
 
-	@ManyToOne
-	@Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+	@ManyToOne(cascade = { jakarta.persistence.CascadeType.PERSIST, jakarta.persistence.CascadeType.MERGE })
 	@JoinColumn(name = "ownerId")
 	private DbAccount owner;
 

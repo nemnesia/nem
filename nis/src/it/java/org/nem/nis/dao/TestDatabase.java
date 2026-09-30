@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.logging.*;
 import java.util.stream.Collectors;
 import org.hibernate.*;
+import org.hibernate.query.Query;
 import org.nem.core.crypto.*;
 import org.nem.core.model.*;
 import org.nem.core.model.primitive.*;

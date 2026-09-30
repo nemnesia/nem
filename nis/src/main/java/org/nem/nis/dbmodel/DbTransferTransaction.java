@@ -1,11 +1,10 @@
 package org.nem.nis.dbmodel;
 
 import java.util.*;
-import javax.persistence.*;
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.*;
-import org.hibernate.annotations.CascadeType;
 
 /**
  * Transfer Db entity. <br>
@@ -15,8 +14,7 @@ import org.hibernate.annotations.CascadeType;
 @Entity
 @Table(name = "transfers")
 public class DbTransferTransaction extends AbstractBlockTransfer<DbTransferTransaction> {
-	@ManyToOne
-	@Cascade(CascadeType.SAVE_UPDATE)
+	@ManyToOne(cascade = { jakarta.persistence.CascadeType.PERSIST, jakarta.persistence.CascadeType.MERGE })
 	@JoinColumn(name = "recipientId")
 	private DbAccount recipient;
 
@@ -25,8 +23,7 @@ public class DbTransferTransaction extends AbstractBlockTransfer<DbTransferTrans
 	private Integer messageType;
 	private byte[] messagePayload;
 
-	@OneToMany(cascade = javax.persistence.CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "transferTransaction", orphanRemoval = true)
-	@LazyCollection(LazyCollectionOption.FALSE)
+	@OneToMany(cascade = jakarta.persistence.CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "transferTransaction", orphanRemoval = true)
 	private Collection<DbMosaic> mosaics = new ArrayList<>();
 
 	public DbAccount getRecipient() {

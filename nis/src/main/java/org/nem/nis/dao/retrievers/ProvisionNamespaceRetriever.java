@@ -3,7 +3,6 @@ package org.nem.nis.dao.retrievers;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.hibernate.*;
-import org.hibernate.criterion.*;
 import org.nem.nis.dao.*;
 import org.nem.nis.dbmodel.*;
 
@@ -21,19 +20,11 @@ public class ProvisionNamespaceRetriever implements TransactionRetriever {
 		}
 
 		final String senderOrRentalFeeSink = ReadOnlyTransferDao.TransferType.OUTGOING.equals(transferType) ? "sender" : "rentalFeeSink";
-		final Criteria criteria = session.createCriteria(DbProvisionNamespaceTransaction.class) // preserve-newline
-				.setFetchMode("block", FetchMode.JOIN) // preserve-newline
-				.setFetchMode("sender", FetchMode.JOIN) // preserve-newline
-				.setFetchMode("rentalFeeSink", FetchMode.JOIN) // preserve-newline
-				.setFetchMode("namespace", FetchMode.JOIN) // preserve-newline
-				.add(Restrictions.eq(senderOrRentalFeeSink + ".id", accountId)) // preserve-newline
-				.add(Restrictions.isNotNull("senderProof")) // preserve-newline
-				.add(Restrictions.lt("id", maxId)) // preserve-newline
-				.addOrder(Order.asc(senderOrRentalFeeSink)) // preserve-newline
-				.addOrder(Order.desc("id")) // preserve-newline
-				.setMaxResults(limit);
-		criteria.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY);
-		final List<DbProvisionNamespaceTransaction> list = HibernateUtils.listAndCast(criteria);
+		final String hql = "select distinct t from DbProvisionNamespaceTransaction t join fetch t.block join fetch t.sender "
+				+ "join fetch t.rentalFeeSink join fetch t.namespace where t." + senderOrRentalFeeSink
+				+ ".id = :accountId and t.senderProof is not null and t.id < :maxId order by t." + senderOrRentalFeeSink + ".id asc, t.id desc";
+		final List<DbProvisionNamespaceTransaction> list = session.createQuery(hql, DbProvisionNamespaceTransaction.class)
+				.setParameter("accountId", accountId).setParameter("maxId", maxId).setMaxResults(limit).getResultList();
 		return list.stream().map(t -> new TransferBlockPair(t, t.getBlock())).collect(Collectors.toList());
 	}
 }

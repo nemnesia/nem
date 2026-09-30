@@ -2,7 +2,7 @@ package org.nem.nis.controller;
 
 import java.util.Collection;
 import java.util.stream.Collectors;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.hamcrest.MatcherAssert;
 import org.junit.*;
 import org.mockito.Mockito;

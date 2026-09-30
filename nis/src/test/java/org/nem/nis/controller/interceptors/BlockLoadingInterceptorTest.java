@@ -1,6 +1,6 @@
 package org.nem.nis.controller.interceptors;
 
-import javax.servlet.http.*;
+import jakarta.servlet.http.*;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
 import org.junit.*;
