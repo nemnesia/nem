@@ -1,4 +1,4 @@
-name: Java 17 Baseline
+name: Java 17 Compatibility
 
 'on':
   push:
@@ -9,7 +9,7 @@ name: Java 17 Baseline
 
 jobs:
   build-and-test:
-    name: Build and unit test on Java 17 (production baseline)
+    name: Build and unit test on Java 17 (compatibility lane)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

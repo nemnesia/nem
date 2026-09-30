@@ -47,13 +47,13 @@ npm run test
 > **NOTE:**
 > It is far more convenient to use the [nem repository](https://github.com/NemProject/nem) to build and run this package.
 
-The package uses [Apache Maven](https://maven.apache.org/) and the minimum required Java SDK version to build is **Java 17**.
+Java **25** is the primary production, build, and CI runtime baseline. Java 17 remains a required compatibility runtime during Phase 2L-A. This module continues to compile for Java 17 bytecode (`--release 17`).
 
-Please make sure that the Java version is 17 or newer by running the following command:
+Use Java 25 for the primary build, or Java 17 to check the compatibility lane:
 
 ```bash
 java -version
-# a Java 17 or newer version
+# primary baseline: Java 25; compatibility lane: Java 17
 ```
 
 First build and install (with ``mvn install -DskipTests=true``) all the dependency packages [nem.core](https://github.com/NemProject/nem.core), [nem.peer](https://github.com/NemProject/nem.peer) and [nem.deploy](https://github.com/NemProject/nem.deploy). Make sure they are all accessible through the ``CLASSPATH`` environment variable.

@@ -1,4 +1,4 @@
-name: Java 25 Compatibility
+name: Java 25 Production Baseline
 
 'on':
   push:
@@ -9,7 +9,7 @@ name: Java 25 Compatibility
 
 jobs:
   build-and-test:
-    name: Build and unit test on Java 25
+    name: Build and unit test on Java 25 (primary runtime)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

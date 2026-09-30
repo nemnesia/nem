@@ -16,13 +16,13 @@ The main folders are:
 
 ## Building the package
 
-The package uses [Apache Maven](https://maven.apache.org/) and the minimum required Java SDK version to build is **Java 17**.
+Java **25** is the primary production, build, and CI runtime baseline. Java 17 remains a required compatibility runtime during Phase 2L-A. The modules continue to compile for Java 17 bytecode (`--release 17`), so runtime baseline and bytecode target are separate.
 
-Please make sure that the Java version is 17 or newer by running the following command:
+Use Java 25 for the primary build, or Java 17 to check the compatibility lane:
 
 ```bash
 java -version
-# should print a Java 17 or newer version
+# primary baseline: Java 25; compatibility lane: Java 17
 ```
 
 Build the package as usual:
