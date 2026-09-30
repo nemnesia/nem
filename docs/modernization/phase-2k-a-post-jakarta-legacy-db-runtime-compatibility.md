@@ -13,7 +13,7 @@
 - Requested starting HEAD: `8c5de3fec6972bb66ef10c81fafd6628b437bbc5`
 - Actual starting HEAD: `8c5de3fec6972bb66ef10c81fafd6628b437bbc5` (matches request)
 - Starting local HEAD == `origin/agent/nis-phase0-baseline`
-- Starting worktree already had `.gitignore` adding `legacy/` and `nis/pom.xml` removing Hibernate's Byte Buddy exclusion. Both existing edits were preserved and excluded from the Phase 2K-A commit.
+- Starting worktree already had `.gitignore` adding `legacy/` and `nis/pom.xml` removing Hibernate's Byte Buddy exclusion. The `.gitignore` edit remains an unrelated uncommitted change. The POM edit was included in the follow-up build commit after runtime packaging confirmed that Hibernate 7's Byte Buddy provider must be present.
 - No reset, rebase, stash, force push, or database artifact commit was performed.
 
 ## Candidate protection and identity
@@ -107,7 +107,7 @@ This validates the current Hibernate/Spring persistence runtime against these ex
 ## Git and gate status
 
 - Phase 2K-A evidence is documentation-only; no source, POM or schema changes were made for it.
-- Existing `.gitignore` and `nis/pom.xml` worktree edits were preserved and excluded from the commit. No `legacy/` artifact was staged.
+- The existing `.gitignore` edit remains uncommitted and was excluded. The pre-existing `nis/pom.xml` Byte Buddy exclusion removal is included in the follow-up build commit. No `legacy/` artifact was staged.
 - Final local/origin branch status and commit SHA are recorded in the task completion report.
 - Phase 2F provenance gate: **BLOCKED — trusted snapshot provenance remains unavailable**.
 - Phase 2K final persisted-chain acceptance: **NOT ACCEPTED / NOT THIS PHASE**. This compatibility result cannot substitute for authenticated provenance and the designated final persisted-chain acceptance evidence.
