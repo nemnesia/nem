@@ -1,5 +1,12 @@
 # Phase 2L-A — Java 25 production baseline transition
 
+> Historical Phase 2L-A decision. Phase 2L-B follow-up and the current
+> Java 25 baseline status are recorded in
+> [Phase 2L-B CI final acceptance](phase-2l-b-java25-ci-final-acceptance.md).
+> The Phase 2F blocker described in the original Phase 2L-A record was
+> superseded by the formal Phase 2F closure decision: Phase 2F is now
+> **COMPLETE / CLOSED**.
+
 ## Decision
 
 **PARTIAL — JAVA 25 PRODUCTION BASELINE NOT YET READY.** Java 25 is now explicit as the primary runtime/build baseline in the repository documentation, the Java 25 GitHub Actions workflow, CodeQL, and the NIS production Docker image. Java 17 remains an explicitly required compatibility lane, and all modules still compile to Java 17 bytecode. The requested Java 25 and Java 17 regression commands, the Java 25 production-equivalent bootstrap, both persisted-chain replays, and the Java 25 Docker image build passed.
@@ -125,7 +132,7 @@ The Docker production image built successfully as `nem-phase2l-a-java25-validati
 ## Phase status and remaining gates
 
 - **Phase 2K persisted-chain acceptance: COMPLETE**, unchanged. This phase reran the requested Java 25 chain regression without repeating the full 2K lifecycle acceptance.
-- **Phase 2F trusted provenance: BLOCKED**, independently. The databases are real NIS runtime-derived data, but independent authenticated custody / trusted snapshot provenance remains unavailable. This limitation does not invalidate their software compatibility evidence.
+- **Phase 2F status at the time of Phase 2L-A: BLOCKED**, based on the then-current evidence contract. This historical blocker was superseded by the formal [Phase 2F final closure](phase-2f-real-db-final-closure.md); current Phase 2F status is **COMPLETE / CLOSED**. The closure accepts project-owner operational provenance and does not claim third-party cryptographic provenance.
 - **Jenkins CI baseline: unresolved external path.** The pinned `_symbol` image/shared-library state has no verified Java 25 Jenkins executor. Prior Phase 2I-B evidence documented that its Java 17 image was unavailable and the default CI image was Java 11. A published Java 25 image, an effective live Jenkins image selection, and a Java 25 Jenkins run are still needed before claiming every repository CI path has transitioned.
 - **Hosted CI on final commits:** the Java 25 and Java 17 workflows are configured to run on pushes; final hosted run results should be recorded once those runs complete.
 
@@ -139,4 +146,4 @@ The runtime stack, protocol behavior, consensus, serialization, network identiti
 - [Phase 2I-B Jenkins Java 17 image investigation](phase-2i-b-jenkins-java17-alignment.md)
 - [Phase 2K-B persisted-chain final acceptance](phase-2k-b-post-jakarta-persisted-chain-final-acceptance.md)
 
-**Phase 2L-A status: PARTIAL.** Java 25 is configured and validated for production packaging/runtime and required GitHub Actions CI; the configured external Jenkins CI path still lacks a verified Java 25 executor.
+**Phase 2L-A status at its completion: PARTIAL.** Java 25 was configured and validated for production packaging/runtime and required GitHub Actions CI; the configured external Jenkins CI path still lacked a verified Java 25 executor. Phase 2L-B re-investigated that path and records the current decision.
