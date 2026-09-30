@@ -413,7 +413,14 @@ complete persisted-state compatibility evidence.
 
 ### Phase 2F — H2/Flyway database compatibility
 
-**Phase 2F status: COMPLETE WITH RECORDED COMPATIBILITY LIMITATIONS.** Starting
+**Current Phase 2F status: COMPLETE / CLOSED.** Real legacy DB runtime and
+persisted-chain compatibility is accepted; external third-party cryptographic
+provenance is not a Phase 2F technical acceptance requirement. See the [Phase
+2F final closure](phase-2f-real-db-final-closure.md). The earlier sub-phase
+records below preserve the acceptance criteria and limitations that applied
+when they were written.
+
+**Historical Phase 2F implementation status: COMPLETE WITH RECORDED COMPATIBILITY LIMITATIONS.** Starting
 HEAD was `5868cb184fa29f35a6dc36655f1753f4f5984301`; the final commit is this
 Phase 2F verification commit (the exact final SHA is recorded in the final report).
 The Phase 2D `BLOCKED` history and Phase 2E result above are unchanged.
@@ -557,11 +564,13 @@ line, cache/persistent state, and memory optimization remain later decisions.
 
 ## NEEDS USER DECISION
 
-1. **Database rollout procedure:** Phase 2F selected and tested an offline
-   H2 1.4 export / H2 2 import on a disposable Testnet copy. Before production
-   rollout, define backup/maintenance procedures for each network database
-   and obtain a matching-genesis snapshot for full state comparison. Direct
-   in-place H2 file opening is not supported.
+1. **Database rollout procedure:** Phase 2F later validated the supplied
+   Mainnet and Testnet legacy databases on disposable copies, including
+   matching-genesis chain reconstruction and post-Jakarta persisted-chain
+   lifecycle. This closes the Phase 2F compatibility acceptance. Any future
+   production database conversion or migration still needs an operational
+   backup/maintenance procedure; direct in-place H2 file opening is not
+   supported.
 2. **Production container:** decide separately whether the production image
    may move from Java 11 to a Java 25-compatible base after CI validation.
 3. **Security priority:** if an external advisory is shown to apply to an
