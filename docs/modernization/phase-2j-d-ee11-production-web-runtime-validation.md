@@ -74,6 +74,8 @@ mvn -B clean package
 
 The runtime probe passed on both Java 17 and Java 25: `1 test, 0 failures, 0 errors, 0 skipped` each.
 
+The first version used the ordinary Surefire `*Test` naming pattern. Starting NIS in the same test JVM exposed its process-global `NemGlobals` state and caused unrelated later fork/mosaic/remote observer tests to fail. The probe now resets the test globals and is named `...Probe`, so it is executed only by the explicit command above in its own Surefire invocation. The ordinary full suite then passed at its expected 6,227-test discovery count; no assertions or tests were weakened.
+
 | Runtime | `clean test` | `clean package` |
 |---|---:|---:|
 | Java 17 | 6,227 tests; 0 failures, 0 errors, 0 skipped | 6,227 tests; 0 failures, 0 errors, 0 skipped |
