@@ -72,6 +72,7 @@ public class NemServerBootstrapper extends AbstractServerBootstrapper {
 					new DispatcherServlet(webCtx));
 			dispatcher.setLoadOnStartup(1);
 			dispatcher.addMapping(String.format("%s%s", this.configuration.getApiContext(), "/*"));
+			dispatcher.setAsyncSupported(true);
 
 			if (this.configuration.isNcc()) {
 				final String contextMapping = String.format("%s/*", this.configuration.getWebContext());
