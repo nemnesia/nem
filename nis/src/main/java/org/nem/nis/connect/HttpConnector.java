@@ -1,6 +1,5 @@
 package org.nem.nis.connect;
 
-import java.net.URI;
 import java.net.URL;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;

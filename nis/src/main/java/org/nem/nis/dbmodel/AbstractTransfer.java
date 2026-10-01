@@ -1,7 +1,6 @@
 package org.nem.nis.dbmodel;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.Cascade;
 import org.nem.core.crypto.Hash;
 
 /**

@@ -1,7 +1,6 @@
 package org.nem.nis.dbmodel;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.Cascade;
 
 /**
  * Namespace db entity <br>

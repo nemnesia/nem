@@ -9,7 +9,6 @@ import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.nem.core.connect.ErrorResponse;
 import org.nem.core.serialization.Deserializer;
