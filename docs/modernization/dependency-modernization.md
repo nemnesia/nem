@@ -577,6 +577,32 @@ See the [Phase 2N boundary closure record](phase-2n-nis-symbol-java25-boundary-c
 The next modernization audit is **Phase 2O — Final Dependency Modernization
 Audit**.
 
+### Current modernization status — Phase 2O / 2P
+
+Phase 2O and Phase 2P are **COMPLETE / CLOSED — PHASE 2 JAVA 25
+MODERNIZATION**. Phase 2O updated the justified dependency lines to Hibernate
+ORM `7.4.11.Final` and H2 `2.5.252`; Spring `7.0.9`, Flyway `12.11.0`, Jetty
+`12.1.13` EE11, Jakarta Persistence `3.2.0`, and compiler release `17` remain
+in the accepted configuration. Its final audit classifies other direct
+dependency/plugin candidates as KEEP or DEFER rather than adding unrelated
+updates. Phase 2P records Java 17/25 root tests and package checks, current
+runtime graph, fresh Flyway migration behavior, Mainnet/Testnet disposable-copy
+replay, and the focused controller/DAO/H2 Failsafe group. The wider 79-test
+Failsafe suite was also run and did not pass completely due the recorded public
+peer, Mijin dataset, statistical, timing, and performance cases; no failure was
+suppressed and the Phase 2 database/controller acceptance group passed.
+
+Phase 2L-H remains **BLOCKED — EXTERNAL JENKINS JAVA 25 OWNER ACTION REQUIRED**
+and Phase 2L remains **PARTIAL**. No hosted Jenkins Java 25 execution is
+claimed. Under the Phase 2O/2P scope, hosted Jenkins image publication and
+mapping are an external infrastructure follow-up, not a repository-controlled
+Java 25 completion gate. See the [Phase 2O dependency audit](phase-2o-final-dependency-modernization-audit.md)
+and [Phase 2P final acceptance record](phase-2p-java25-final-acceptance.md).
+
+Phase 2 overall is **COMPLETE / CLOSED for repository-controlled Java 25
+modernization**. Phase 2L-H's hosted operational follow-up remains separately
+tracked and is not represented as completed.
+
 ## Explicitly deferred
 
 - Any production dependency version change in Phase 2A.
