@@ -16,13 +16,13 @@ The main folders are:
 
 ## Building the package
 
-Java **25** is the primary production, build, and CI runtime baseline. Java 17 remains a required compatibility runtime during Phase 2L-A. The modules continue to compile for Java 17 bytecode (`--release 17`), so runtime baseline and bytecode target are separate.
+Java **25** is the required production, build, and CI baseline. The modules compile for Java 25 (`--release 25`); Java 17 compatibility has ended.
 
-Use Java 25 for the primary build, or Java 17 to check the compatibility lane:
+Use Java 25 for builds and runtime:
 
 ```bash
 java -version
-# primary baseline: Java 25; compatibility lane: Java 17
+# required baseline: Java 25
 ```
 
 Build the package as usual:

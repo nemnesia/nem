@@ -1,5 +1,6 @@
 package org.nem.nis.connect;
 
+import java.net.URI;
 import java.net.URL;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -127,7 +128,7 @@ public class HttpConnector implements PeerConnector, SyncConnector, TimeSynchron
 	// endregion
 
 	private static URL getUrl(final Node node, final NisPeerId id) {
-		return ExceptionUtils.propagate(() -> new URL(node.getEndpoint().getBaseUrl(), id.toString()));
+		return ExceptionUtils.propagate(() -> URL.of(node.getEndpoint().getBaseUrl().toURI().resolve(id.toString()), null));
 	}
 
 	private CompletableFuture<Deserializer> post(final URL url, final SerializableEntity entity) {

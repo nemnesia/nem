@@ -3,6 +3,7 @@ package org.nem.core.connect;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import org.hamcrest.MatcherAssert;
@@ -28,7 +29,7 @@ public class WireMockCompatibilityTest {
 					.willReturn(aResponse().withStatus(202).withHeader("X-Result", "accepted").withBody("matched")));
 
 			MatcherAssert.assertThat(server.port() > 0, IsEqual.equalTo(true));
-			final URL url = new URL(server.baseUrl() + "/lookup?network=testnet");
+			final URL url = URI.create(server.baseUrl() + "/lookup?network=testnet").toURL();
 			final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 			connection.setConnectTimeout(5000);
 			connection.setReadTimeout(5000);

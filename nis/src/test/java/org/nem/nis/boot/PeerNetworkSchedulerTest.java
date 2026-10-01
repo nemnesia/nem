@@ -23,6 +23,16 @@ public class PeerNetworkSchedulerTest {
 		}
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void tasksCannotBeAddedAfterSchedulerIsClosed() {
+		// Arrange:
+		final PeerNetworkScheduler scheduler = createScheduler();
+		scheduler.close();
+
+		// Act:
+		scheduler.addTasks(Mockito.mock(PeerNetwork.class), Mockito.mock(PeerNetworkBroadcastBuffer.class), false, false);
+	}
+
 	@Test
 	public void addTasksAddsAllNisTasks() {
 		// Arrange:

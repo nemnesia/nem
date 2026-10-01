@@ -84,6 +84,12 @@ public class DefaultAsyncNemConnector<TApiId> implements AsyncNemConnector<TApiI
 	}
 
 	private URL createNisUrl(final NodeEndpoint endpoint, final String nisPath) throws MalformedURLException {
-		return new URL(endpoint.getBaseUrl(), nisPath);
+		try {
+			return URL.of(endpoint.getBaseUrl().toURI().resolve(nisPath), null);
+		} catch (final URISyntaxException | IllegalArgumentException e) {
+			final MalformedURLException malformedUrlException = new MalformedURLException(e.getMessage());
+			malformedUrlException.initCause(e);
+			throw malformedUrlException;
+		}
 	}
 }

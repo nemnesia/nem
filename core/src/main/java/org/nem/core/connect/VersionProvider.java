@@ -1,5 +1,6 @@
 package org.nem.core.connect;
 
+import java.net.URI;
 import java.net.URL;
 import java.util.logging.Logger;
 import org.nem.core.metadata.MetaDataFactory;
@@ -45,7 +46,7 @@ public class VersionProvider {
 	 */
 	public NodeVersion getLatestVersion() {
 		try {
-			final URL url = ExceptionUtils.propagate(() -> new URL(VERSION_PROVIDER_URL));
+			final URL url = ExceptionUtils.propagate(() -> URL.of(URI.create(VERSION_PROVIDER_URL), null));
 			return this.httpClient.get(url, new HttpErrorResponseDeserializerUnionStrategy(null)).getFuture().thenApply(union -> {
 				final Deserializer deserializer = union.getDeserializer();
 				return NodeVersion.parse(deserializer.readString(VERSION_FLAVOR));

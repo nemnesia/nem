@@ -33,6 +33,7 @@ public class MetaDataTestUtils {
 	 * @return The url.
 	 * @throws IOException If an I/O exception occurred.
 	 */
+	@SuppressWarnings("deprecation")
 	public static URL createMockUrl(final String spec, final InputStream inputStream) throws IOException {
 		final URLStreamHandler urlStreamHandler = new URLStreamHandler() {
 			@Override

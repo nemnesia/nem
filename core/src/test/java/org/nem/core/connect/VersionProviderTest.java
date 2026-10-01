@@ -1,5 +1,6 @@
 package org.nem.core.connect;
 
+import java.net.URI;
 import java.net.URL;
 import java.util.concurrent.CompletableFuture;
 import net.minidev.json.JSONObject;
@@ -99,7 +100,7 @@ public class VersionProviderTest {
 		}
 
 		public void assertDelegationToVersionProvider() {
-			final URL versionProviderUrl = ExceptionUtils.propagate(() -> new URL("http://bob.nem.ninja/version.json"));
+			final URL versionProviderUrl = ExceptionUtils.propagate(() -> URI.create("http://bob.nem.ninja/version.json").toURL());
 			Mockito.verify(this.client, Mockito.only()).get(Mockito.eq(versionProviderUrl), Mockito.any());
 		}
 	}

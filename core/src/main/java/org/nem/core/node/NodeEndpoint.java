@@ -93,8 +93,8 @@ public class NodeEndpoint implements SerializableEntity {
 
 	private URL createUrl() {
 		try {
-			return new URL(this.protocol, this.host, this.port, "/");
-		} catch (final MalformedURLException e) {
+			return URL.of(new URI(this.protocol, null, this.host, this.port, "/", null, null), null);
+		} catch (final URISyntaxException | MalformedURLException | IllegalArgumentException e) {
 			throw new InvalidNodeEndpointException("url is malformed", e);
 		}
 	}

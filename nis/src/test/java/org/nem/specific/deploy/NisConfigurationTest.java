@@ -1,5 +1,6 @@
 package org.nem.specific.deploy;
 
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.*;
@@ -387,7 +388,7 @@ public class NisConfigurationTest {
 			throw new IllegalArgumentException(String.format("could not find: '%s'", proxyResource));
 		}
 
-		final URL url = new URL(proxyUrl.toString().replace(proxyResource, desiredResource));
+		final URL url = URI.create(proxyUrl.toString().replace(proxyResource, desiredResource)).toURL();
 		final Path resPath = java.nio.file.Paths.get(url.toURI());
 		return java.nio.file.Files.readAllBytes(resPath);
 	}

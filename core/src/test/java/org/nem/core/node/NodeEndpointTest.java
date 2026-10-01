@@ -1,6 +1,7 @@
 package org.nem.core.node;
 
 import java.math.BigInteger;
+import java.net.URI;
 import java.net.URL;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.*;
@@ -17,7 +18,7 @@ public class NodeEndpointTest {
 		final NodeEndpoint endpoint = new NodeEndpoint("ftp", "10.8.8.2", 12);
 
 		// Assert:
-		final URL expectedUrl = new URL("ftp", "10.8.8.2", 12, "/");
+		final URL expectedUrl = URI.create("ftp://10.8.8.2:12/").toURL();
 		MatcherAssert.assertThat(endpoint.getBaseUrl(), IsEqual.equalTo(expectedUrl));
 	}
 
@@ -27,7 +28,7 @@ public class NodeEndpointTest {
 		final NodeEndpoint endpoint = NodeEndpoint.fromHost("10.8.8.2");
 
 		// Assert:
-		final URL expectedUrl = new URL("http", "10.8.8.2", 7890, "/");
+		final URL expectedUrl = URI.create("http://10.8.8.2:7890/").toURL();
 		MatcherAssert.assertThat(endpoint.getBaseUrl(), IsEqual.equalTo(expectedUrl));
 	}
 
@@ -40,7 +41,7 @@ public class NodeEndpointTest {
 		final NodeEndpoint endpoint = new NodeEndpoint(Utils.roundtripSerializableEntity(originalEndpoint, null));
 
 		// Assert:
-		final URL expectedUrl = new URL("ftp", "10.8.8.2", 12, "/");
+		final URL expectedUrl = URI.create("ftp://10.8.8.2:12/").toURL();
 		MatcherAssert.assertThat(endpoint.getBaseUrl(), IsEqual.equalTo(expectedUrl));
 	}
 

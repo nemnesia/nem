@@ -49,11 +49,17 @@ public class PeerNetworkScheduler implements AutoCloseable {
 
 	private static final int CHECK_CHAIN_SYNC_INTERVAL = 30 * ONE_SECOND;
 
+	private static final int BACKGROUND_TASK_THREAD_COUNT = 5;
+	private static final int BACKGROUND_TASK_QUEUE_CAPACITY = 5;
+
 	private final TimeProvider timeProvider;
 	private final HarvestingTask harvestingTask;
 	private final List<NemAsyncTimerVisitor> timerVisitors = new ArrayList<>();
 	private final List<AsyncTimer> timers = new ArrayList<>();
-	private final Executor executor = Executors.newCachedThreadPool();
+	private volatile boolean isClosed;
+	private final ExecutorService executor = new ThreadPoolExecutor(BACKGROUND_TASK_THREAD_COUNT, BACKGROUND_TASK_THREAD_COUNT, 0L,
+			TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(BACKGROUND_TASK_QUEUE_CAPACITY), Executors.defaultThreadFactory(),
+			new ThreadPoolExecutor.AbortPolicy());
 
 	/**
 	 * Creates a new scheduler.
@@ -85,6 +91,10 @@ public class PeerNetworkScheduler implements AutoCloseable {
 	 */
 	public void addTasks(final PeerNetwork network, final PeerNetworkBroadcastBuffer networkBroadcastBuffer, final boolean useNetworkTime,
 			final boolean enableAutoIpDetection) {
+		if (this.isClosed) {
+			throw new IllegalStateException("scheduler is closed");
+		}
+
 		this.addForagingTask(network);
 
 		final NetworkTaskInitializer initializer = new NetworkTaskInitializer(this, network, networkBroadcastBuffer);
@@ -215,11 +225,27 @@ public class PeerNetworkScheduler implements AutoCloseable {
 
 	@Override
 	public void close() {
+		this.isClosed = true;
 		this.timers.forEach(AsyncTimer::close);
+		this.executor.shutdown();
 	}
 
 	private Supplier<CompletableFuture<?>> runnableToFutureSupplier(final Runnable runnable) {
-		return () -> CompletableFuture.runAsync(runnable, this.executor);
+		return () -> {
+			if (this.isClosed) {
+				return CompletableFuture.completedFuture(null);
+			}
+
+			try {
+				return CompletableFuture.runAsync(runnable, this.executor);
+			} catch (final RejectedExecutionException e) {
+				if (this.isClosed) {
+					return CompletableFuture.completedFuture(null);
+				}
+
+				throw e;
+			}
+		};
 	}
 
 	private NemAsyncTimerVisitor createNamedVisitor(final String name) {

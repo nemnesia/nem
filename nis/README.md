@@ -47,13 +47,13 @@ npm run test
 > **NOTE:**
 > It is far more convenient to use the [nem repository](https://github.com/NemProject/nem) to build and run this package.
 
-Java **25** is the primary production, build, and CI runtime baseline. Java 17 remains a required compatibility runtime during Phase 2L-A. This module continues to compile for Java 17 bytecode (`--release 17`).
+Java **25** is the required production, build, and CI baseline. This module compiles for Java 25 (`--release 25`); Java 17 compatibility has ended.
 
-Use Java 25 for the primary build, or Java 17 to check the compatibility lane:
+Use Java 25 for builds and runtime:
 
 ```bash
 java -version
-# primary baseline: Java 25; compatibility lane: Java 17
+# required baseline: Java 25
 ```
 
 First build and install (with ``mvn install -DskipTests=true``) all the dependency packages [nem.core](https://github.com/NemProject/nem.core), [nem.peer](https://github.com/NemProject/nem.peer) and [nem.deploy](https://github.com/NemProject/nem.deploy). Make sure they are all accessible through the ``CLASSPATH`` environment variable.

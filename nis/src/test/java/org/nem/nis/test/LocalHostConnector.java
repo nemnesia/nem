@@ -1,5 +1,6 @@
 package org.nem.nis.test;
 
+import java.net.URI;
 import java.net.URL;
 import net.minidev.json.JSONObject;
 import org.nem.core.connect.*;
@@ -25,7 +26,7 @@ public class LocalHostConnector {
 		final DeserializationContext context = new DeserializationContext(new MockAccountLookup());
 		final HttpErrorResponseDeserializerUnionStrategy strategy = new HttpErrorResponseDeserializerUnionStrategy(context);
 		return ExceptionUtils.propagate(() -> {
-			final URL url = new URL("http", "127.0.0.1", 7890, "/" + path);
+			final URL url = URI.create(String.format("http://127.0.0.1:7890/%s", path)).toURL();
 			return this.httpMethodClient.post(url, new HttpJsonPostRequest(input), strategy).get();
 		});
 	}

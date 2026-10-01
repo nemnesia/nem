@@ -1,14 +1,12 @@
 package org.nem.core.async;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Static class containing methods for creating a delayed future.
  */
 public class SleepFuture {
-	private static final Timer TIMER = new Timer(true);
-
 	/**
 	 * Creates a new future that fires at the specified time in the future.
 	 *
@@ -17,13 +15,12 @@ public class SleepFuture {
 	 * @return The future.
 	 */
 	public static <T> CompletableFuture<T> create(final int delay) {
+		if (delay < 0) {
+			throw new IllegalArgumentException("negative delay");
+		}
+
 		final CompletableFuture<T> future = new CompletableFuture<>();
-		TIMER.schedule(new TimerTask() {
-			@Override
-			public void run() {
-				future.complete(null);
-			}
-		}, delay);
+		CompletableFuture.delayedExecutor(delay, TimeUnit.MILLISECONDS, Runnable::run).execute(() -> future.complete(null));
 		return future;
 	}
 }

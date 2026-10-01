@@ -1,6 +1,7 @@
 package org.nem.core.connect.client;
 
 import java.io.ByteArrayInputStream;
+import java.net.URI;
 import java.net.URL;
 import java.util.concurrent.CompletableFuture;
 import net.minidev.json.JSONObject;
@@ -25,7 +26,7 @@ public class DefaultAsyncNemConnectorTest {
 	public void getAsyncCallsErrorResponseStrategyOnError() {
 		// Arrange:
 		final NodeEndpoint endpoint = NodeEndpoint.fromHost("10.0.0.88");
-		final URL url = ExceptionUtils.propagate(() -> new URL("http://10.0.0.88:7890/node/info"));
+		final URL url = ExceptionUtils.propagate(() -> URI.create("http://10.0.0.88:7890/node/info").toURL());
 		final TestContext context = new TestContext();
 		context.setGetToken(url, createErrorToken());
 
@@ -54,7 +55,7 @@ public class DefaultAsyncNemConnectorTest {
 	private static void assertGetAsyncReturnsDeserializerOnSuccess(final NodeEndpoint endpoint, final String urlString,
 			final String queryString) {
 		// Arrange:
-		final URL url = ExceptionUtils.propagate(() -> new URL(urlString));
+		final URL url = ExceptionUtils.propagate(() -> URI.create(urlString).toURL());
 		final TestContext context = new TestContext();
 		context.setGetToken(url, createSuccessToken());
 
@@ -73,7 +74,7 @@ public class DefaultAsyncNemConnectorTest {
 	@Test
 	public void postCallsErrorResponseStrategyOnError() {
 		// Arrange:
-		final URL url = ExceptionUtils.propagate(() -> new URL("http://10.0.0.88:7890/node/info"));
+		final URL url = ExceptionUtils.propagate(() -> URI.create("http://10.0.0.88:7890/node/info").toURL());
 		final HttpPostRequest postRequest = Mockito.mock(HttpPostRequest.class);
 		final TestContext context = new TestContext();
 		context.setPostToken(url, postRequest, createErrorToken());
@@ -91,7 +92,7 @@ public class DefaultAsyncNemConnectorTest {
 	@Test
 	public void postReturnsDeserializerOnSuccess() {
 		// Arrange:
-		final URL url = ExceptionUtils.propagate(() -> new URL("http://10.0.0.88:7890/node/info"));
+		final URL url = ExceptionUtils.propagate(() -> URI.create("http://10.0.0.88:7890/node/info").toURL());
 		final HttpPostRequest postRequest = Mockito.mock(HttpPostRequest.class);
 		final TestContext context = new TestContext();
 		context.setPostToken(url, postRequest, createSuccessToken());
@@ -108,7 +109,7 @@ public class DefaultAsyncNemConnectorTest {
 	@Test
 	public void postVoidAsyncCallsErrorResponseStrategyOnError() {
 		// Arrange:
-		final URL url = ExceptionUtils.propagate(() -> new URL("http://10.0.0.88:7890/node/info"));
+		final URL url = ExceptionUtils.propagate(() -> URI.create("http://10.0.0.88:7890/node/info").toURL());
 		final HttpPostRequest postRequest = Mockito.mock(HttpPostRequest.class);
 		final TestContext context = new TestContext();
 		context.setPostToken(url, postRequest, createErrorToken());
@@ -126,7 +127,7 @@ public class DefaultAsyncNemConnectorTest {
 	@Test
 	public void postVoidAsyncReturnsNothingOnSuccess() {
 		// Arrange:
-		final URL url = ExceptionUtils.propagate(() -> new URL("http://10.0.0.88:7890/node/info"));
+		final URL url = ExceptionUtils.propagate(() -> URI.create("http://10.0.0.88:7890/node/info").toURL());
 		final HttpPostRequest postRequest = Mockito.mock(HttpPostRequest.class);
 		final TestContext context = new TestContext();
 		context.setPostToken(url, postRequest, createSuccessToken());

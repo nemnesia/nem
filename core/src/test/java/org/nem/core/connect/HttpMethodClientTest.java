@@ -249,6 +249,7 @@ public class HttpMethodClientTest {
 			this.strategy.send(client, this.stringToUrl("http://10.255.255.1"), DEFAULT_STRATEGY).get();
 		}
 
+		@SuppressWarnings("deprecation")
 		private URL stringToUrl(final String s) {
 			return ExceptionUtils.propagate(() -> new URL(s));
 		}

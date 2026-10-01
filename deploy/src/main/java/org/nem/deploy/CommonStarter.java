@@ -195,7 +195,7 @@ public class CommonStarter {
 	}
 
 	private void start(final Server server, final CommonConfiguration configuration) throws Exception {
-		this.startServer(server, new URL(configuration.getShutdownUrl()));
+		this.startServer(server, URL.of(URI.create(configuration.getShutdownUrl()), null));
 		this.servers.add(server);
 	}
 }
