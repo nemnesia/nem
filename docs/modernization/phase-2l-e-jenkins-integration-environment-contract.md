@@ -13,6 +13,9 @@ This record covers repository-owned provisioning and validation only. The Phase 
 - Requested starting HEAD: `dc82cfc09167ad123e138c72fb57be9df3119a18`
 - Actual starting HEAD: `dc82cfc09167ad123e138c72fb57be9df3119a18`
 - Starting local / origin divergence after fetch: `0 ahead / 0 behind`
+- Implementation commit: `b89e9e428d3d1859fc2c6ac728478a0409933be7` (`[nis] test: provision isolated integration runtime`)
+- Validation handoff HEAD after the implementation commit was pushed: `b89e9e428d3d1859fc2c6ac728478a0409933be7` (the documentation inventory follow-up is recorded separately in Git history).
+- Changed files: `nis/pom.xml`; `nis/scripts/ci/{test,setup_test,teardown_test}.sh`; `nis/src/it/java/org/nem/nis/cache/DefaultHashCachePerformanceITCase.java`; `nis/src/it/java/org/nem/nis/dao/{BlockDaoITCase,H2Database,H2StorageSpeedITCase,MissingTransactionITCase,TestConfHardDisk,TestDatabase}.java`; `nis/src/test/java/org/nem/nis/controller/interceptors/LocalHostDetectorTest.java`; this validation record.
 - JDKs: OpenJDK `17.0.20.1`; OpenJDK `25.0.4.1`
 - Maven: `3.8.7`
 - Compiler release: `17`
