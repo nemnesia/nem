@@ -565,6 +565,18 @@ Phase 2L-H remains **BLOCKED — EXTERNAL JENKINS JAVA 25 OWNER ACTION REQUIRED*
 Phase 2L overall remains **PARTIAL**. Phase 2M does not claim hosted Jenkins
 Java 25 acceptance.
 
+### Phase 2N — NIS / Symbol Java 25 boundary
+
+**COMPLETE / CLOSED.** `_symbol` remains a submodule, but the Java 25
+repository-controlled NIS build, tests, production container, and runtime do
+not depend on Symbol Java implementation. No source port or dependency change
+was necessary. The Java 25 shared-library/image mapping and hosted Jenkins run
+remain the separately tracked Phase 2L-H external infrastructure follow-up.
+See the [Phase 2N boundary closure record](phase-2n-nis-symbol-java25-boundary-closure.md).
+
+The next modernization audit is **Phase 2O — Final Dependency Modernization
+Audit**.
+
 ## Explicitly deferred
 
 - Any production dependency version change in Phase 2A.
