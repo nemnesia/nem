@@ -54,6 +54,10 @@ nis.delayBlockLoading=false
 nis.useNetworkTime=false
 EOF
 
+# Compile the repository-owned deterministic genesis generator, then use the
+# production NemesisBlock resource path to fund the controller test account.
+mvn -B -q test-compile
+
 # A separate NIS runtime-derived Mijin dataset is required only by
 # MissingTransactionITCase. Copy it into this disposable home when supplied.
 if [ -n "${NIS_IT_MIJINNET_DB:-}" ]; then
@@ -68,7 +72,9 @@ mvn -B -q dependency:build-classpath -Dmdep.outputFile=target/nis-it-classpath.t
 DEPENDENCY_CLASSPATH=$(cat target/nis-it-classpath.txt)
 mvn -B -q -f ../deploy/pom.xml dependency:build-classpath -Dmdep.outputFile="$PWD/target/deploy-it-classpath.txt"
 DEPLOY_CLASSPATH=$(cat target/deploy-it-classpath.txt)
-RUNTIME_CLASSPATH="$CONFIG_DIR:target/classes:../core/target/classes:../deploy/target/classes:../peer/target/classes:$DEPENDENCY_CLASSPATH:$DEPLOY_CLASSPATH"
+RUNTIME_CLASSPATH="$CONFIG_DIR:target/test-classes:target/classes:../core/target/classes:../deploy/target/classes:../peer/target/classes:$DEPENDENCY_CLASSPATH:$DEPLOY_CLASSPATH"
+
+java -cp "$RUNTIME_CLASSPATH" org.nem.nis.controller.acceptance.DisposableTestnetGenesis "$CONFIG_DIR"
 
 nohup java -Duser.home="$IT_HOME" -cp "$RUNTIME_CLASSPATH" org.nem.deploy.CommonStarter \
 	</dev/null > "$IT_HOME/nis.log" 2>&1 &
