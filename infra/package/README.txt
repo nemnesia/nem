@@ -1,7 +1,15 @@
-Default cache size for db in standalone, has been set to 128M,
-if you need to lower that, you'll need to edit nis/db.properties
+The standalone database cache is set to 128M. To lower it, edit
+nis/db.properties.
 
-For NIS we've also added initial and max memory that java process can get.
-You can modify this using the switches:
--Xms4G
--Xmx6G
+Build and archive the runtime package from the infra directory:
+
+  ./package.prepare.sh [mainnet|testnet]
+  ./package.pack.sh
+
+The network defaults to mainnet. The archive is written to the infra
+directory and includes the package folder.
+
+On Linux, start the node with ./nix.runNis.sh. On Windows, start it with
+runNis.bat. Both launchers use the package's nis directory regardless of
+the current working directory and run Java with -Xms4G -Xmx6G. Adjust those
+memory switches in the launcher if needed.

@@ -21,7 +21,7 @@ RUN java -version \
   && mvn -version \
   && mvn clean package -DskipTests=true \
   && cd infra \
-  && bash ./package.prepare.sh package
+  && bash ./package.prepare.sh mainnet
 
 # second stage of multistage build
 FROM eclipse-temurin:25-jre-jammy AS runner

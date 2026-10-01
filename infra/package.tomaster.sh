@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 ver=$(cat version.current.txt)
 
@@ -19,4 +19,3 @@ git submodule foreach git checkout dev
 # reset dev branch on top of main
 git submodule foreach git checkout -B dev origin/main
 git submodule foreach git push origin dev
-
