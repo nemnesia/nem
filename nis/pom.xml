@@ -15,6 +15,7 @@
         <jetty.version>12.1.13</jetty.version>
         <spring.version>7.0.9</spring.version>
         <hibernate.version>7.2.25.Final</hibernate.version>
+        <nis.it.home>${user.home}</nis.it.home>
     </properties>
 
     <dependencies>
@@ -317,6 +318,9 @@
                     <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}</argLine>
                     <testSourceDirectory>src/integrationtest/java</testSourceDirectory>
                     <failIfNoTests>true</failIfNoTests>
+                    <systemPropertyVariables>
+                        <user.home>${nis.it.home}</user.home>
+                    </systemPropertyVariables>
                 </configuration>
                 <executions>
                     <execution>

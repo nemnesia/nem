@@ -1,5 +1,6 @@
 package org.nem.nis.dao;
 
+import java.nio.file.*;
 import java.sql.*;
 import org.nem.core.utils.ExceptionUtils;
 
@@ -11,16 +12,21 @@ public class H2Database implements AutoCloseable {
 	public H2Database(final String dbName) {
 		this.connection = ExceptionUtils.propagate(() -> {
 			Class.forName(JDBC_DRIVER);
-			return DriverManager.getConnection(this.getDbPath(dbName), "", "");
+			Files.createDirectories(Path.of(System.getProperty("user.home"), "nem", "nis", "data"));
+			return DriverManager.getConnection(getJdbcUrl(dbName), "", "");
 		});
+	}
+
+	static String getDatabasePath(final String dbName) {
+		return Path.of(System.getProperty("user.home"), "nem", "nis", "data", dbName).toString().replace('\\', '/');
+	}
+
+	static String getJdbcUrl(final String dbName) {
+		return String.format("jdbc:h2:%s;MODE=LEGACY;NON_KEYWORDS=VALUE;DB_CLOSE_DELAY=-1", getDatabasePath(dbName));
 	}
 
 	public Connection getConnection() {
 		return this.connection;
-	}
-
-	private String getDbPath(final String dbName) {
-		return String.format("jdbc:h2:%s/nem/nis/data/%s", System.getProperty("user.home"), dbName);
 	}
 
 	@Override

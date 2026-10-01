@@ -1,6 +1,7 @@
 package org.nem.nis.dao;
 
 import java.io.*;
+import java.nio.file.*;
 import java.sql.*;
 import java.util.Set;
 import java.util.logging.*;
@@ -24,10 +25,11 @@ public class MissingTransactionITCase {
 
 	@Test
 	public void noTransactionIsMissing() throws Exception {
-		// supply appropriate data here:
-		// the NetworkSpammer creates transactions with increasing amounts.
-		// default start value for an amount is 1.
-		// note: only run when NIS is not running since it accesses the same database.
+		final Path databaseFile = Path.of(System.getProperty("user.home"), "nem", "nis", "data", "nis5_mijinnet.mv.db");
+		if (!Files.isRegularFile(databaseFile)) {
+			throw new IllegalStateException("MissingTransactionITCase requires a separate NIS runtime-derived Mijin database at "
+					+ databaseFile + ". Supply it with NIS_IT_MIJINNET_DB to scripts/ci/setup_test.sh; accepted Mainnet/Testnet artifacts are not used.");
+		}
 
 		// 250k transactions between height 4984 and height 5400
 		this.assertNoTransactionIsMissing(4984, 5400, 1, 250_000);

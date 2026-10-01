@@ -45,12 +45,12 @@ public class LocalHostDetectorTest {
 	public void detectorCanBeCreatedWithHostNames() {
 		// Arrange:
 		final LocalHostDetector detector = new LocalHostDetector(new String[]{
-				"bob.nem.ninja"
+				"localhost"
 		});
 
 		// Assert:
-		assertAddressIsLocal(detector, "bob.nem.ninja", true);
-		assertAddressIsLocal(detector, "go.nem.ninja", false);
+		assertAddressIsLocal(detector, "localhost", true);
+		assertAddressIsLocal(detector, "192.0.2.1", false);
 	}
 
 	@Test

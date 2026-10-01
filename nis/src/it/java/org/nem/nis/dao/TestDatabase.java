@@ -1,6 +1,7 @@
 package org.nem.nis.dao;
 
 import java.io.*;
+import java.nio.file.*;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.logging.*;
@@ -23,9 +24,6 @@ import org.springframework.test.context.ContextConfiguration;
 @SuppressWarnings({ "deprecation", "rawtypes" })
 public class TestDatabase {
 	private static final Logger LOGGER = Logger.getLogger(TestDatabase.class.getName());
-
-	// you can force repopulating the database by replacing false with true in the next line
-	private static final boolean SHOULD_POPULATE_DATABASE = !databaseFileExists();
 
 	public static final int NUM_BLOCKS = 5000;
 	private static final int NUM_TRANSACTIONS_PER_BLOCK = 100;
@@ -56,7 +54,7 @@ public class TestDatabase {
 	public void load() {
 		final MockAccountDao mockAccountDao = new MockAccountDao();
 		final AccountDaoLookup accountDaoLookup = new AccountDaoLookupAdapter(mockAccountDao);
-		if (SHOULD_POPULATE_DATABASE) {
+		if (this.blockDao.count() < NUM_BLOCKS) {
 			this.accounts = this.createAccounts(NUM_ACCOUNTS, mockAccountDao);
 			this.populateDatabase(NUM_BLOCKS, NUM_TRANSACTIONS_PER_BLOCK, accountDaoLookup);
 		} else {
@@ -72,11 +70,6 @@ public class TestDatabase {
 	public Account getRandomAccount() {
 		final SecureRandom random = new SecureRandom();
 		return this.accounts.get(random.nextInt(this.accounts.size()));
-	}
-
-	private static boolean databaseFileExists() {
-		final File file = new File(System.getProperty("user.home") + "\\nem\\nis\\data\\test.h2.db");
-		return file.exists();
 	}
 
 	private void populateDatabase(final int numBlocks, final int numTransactionsPerBlock, final AccountDaoLookup accountDaoLookup) {

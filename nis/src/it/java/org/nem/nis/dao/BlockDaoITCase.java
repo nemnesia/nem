@@ -26,6 +26,7 @@ public class BlockDaoITCase {
 	@Test
 	public void getBlocksAfterItCase() {
 		// Act:
+		this.database.load();
 		System.gc();
 		final long elapsedTime = measureTime(this.blockDao::getBlocksAfter);
 		LOGGER.warning(String.format("getBlocksAfter needed %dms", elapsedTime));

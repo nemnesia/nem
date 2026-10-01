@@ -12,8 +12,10 @@ import org.nem.core.model.*;
 import org.nem.core.model.primitive.Amount;
 import org.nem.core.time.*;
 import org.nem.deploy.CommonStarter;
+import org.flywaydb.core.Flyway;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-// NOTE: you need to create the database h2_speed_test in order to be able to run the test.
+// The integration-test bootstrap creates this schema in its isolated user.home.
 public class H2StorageSpeedITCase {
 	private static final Logger LOGGER = Logger.getLogger(H2StorageSpeedITCase.class.getName());
 	private static H2Database DB = new H2Database("h2_speed_test");
@@ -26,6 +28,10 @@ public class H2StorageSpeedITCase {
 		} catch (final IOException e) {
 			e.printStackTrace();
 		}
+		final DriverManagerDataSource dataSource = new DriverManagerDataSource();
+		dataSource.setDriverClassName("org.h2.Driver");
+		dataSource.setUrl(H2Database.getJdbcUrl("h2_speed_test"));
+		Flyway.configure().dataSource(dataSource).locations("db/h2").table("schema_version").load().migrate();
 	}
 
 	@Test
@@ -56,7 +62,7 @@ public class H2StorageSpeedITCase {
 			final PreparedStatement statement = DB.getConnection().prepareStatement(sql);
 			for (int j = 0; j < batchSize; j++) {
 				statement.setString(1, accounts.get(i * batchSize + j).getAddress().toString());
-				statement.setString(2, accounts.get(i * batchSize + j).getAddress().getPublicKey().toString());
+				statement.setBytes(2, accounts.get(i * batchSize + j).getAddress().getPublicKey().getRaw());
 				statement.addBatch();
 			}
 
@@ -81,13 +87,13 @@ public class H2StorageSpeedITCase {
 				final TransferTransaction transaction = transactions.get(i * batchSize + j);
 				statement.setLong(1, 1);
 				statement.setLong(2, i * batchSize + j + 1);
-				statement.setString(3, HashUtils.calculateHash(transaction.asNonVerifiable()).toString());
+				statement.setBytes(3, HashUtils.calculateHash(transaction.asNonVerifiable()).getRaw());
 				statement.setInt(4, transaction.getVersion());
 				statement.setLong(5, transaction.getFee().getNumMicroNem());
 				statement.setInt(6, transaction.getTimeStamp().getRawTime());
 				statement.setInt(7, transaction.getDeadline().getRawTime());
 				statement.setLong(8, RANDOM.nextInt(1000) + 1);
-				statement.setString(9, transaction.getSignature().toString());
+				statement.setBytes(9, transaction.getSignature().getBytes());
 				statement.setLong(10, RANDOM.nextInt(1000) + 1);
 				statement.setInt(11, RANDOM.nextInt(1000));
 				statement.setLong(12, transaction.getAmount().getNumMicroNem());
@@ -141,13 +147,16 @@ public class H2StorageSpeedITCase {
 	}
 
 	private static void emptyDb() {
-		DB.execute("SET FOREIGN_KEY_CHECKS=0;");
-		DB.execute("TRUNCATE TABLE accounts;");
-		DB.execute("TRUNCATE TABLE transfers;");
-		DB.execute("TRUNCATE TABLE transferredMosaics;");
-		DB.execute("TRUNCATE TABLE blocks;");
-		DB.execute("ALTER TABLE accounts ALTER COLUMN id RESTART WITH 1");
-		DB.execute("ALTER TABLE blocks ALTER COLUMN id RESTART WITH 1");
-		DB.execute("SET FOREIGN_KEY_CHECKS=1;");
+		DB.execute("SET REFERENTIAL_INTEGRITY FALSE");
+		try {
+			DB.execute("TRUNCATE TABLE accounts");
+			DB.execute("TRUNCATE TABLE transfers");
+			DB.execute("TRUNCATE TABLE transferredMosaics");
+			DB.execute("TRUNCATE TABLE blocks");
+			DB.execute("ALTER TABLE accounts ALTER COLUMN id RESTART WITH 1");
+			DB.execute("ALTER TABLE blocks ALTER COLUMN id RESTART WITH 1");
+		} finally {
+			DB.execute("SET REFERENTIAL_INTEGRITY TRUE");
+		}
 	}
 }

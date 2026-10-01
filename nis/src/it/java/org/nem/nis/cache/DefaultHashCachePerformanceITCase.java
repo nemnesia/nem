@@ -67,6 +67,7 @@ public class DefaultHashCachePerformanceITCase {
 		final int count = 250_000;
 		final TestContext context = new TestContext(count);
 		context.cache.putAll(context.pairs);
+		context.cache.commit();
 
 		// Act:
 		final long start = System.currentTimeMillis();
