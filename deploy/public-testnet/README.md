@@ -86,8 +86,10 @@ curl -fsS http://127.0.0.1:7890/status
 From a separate Internet-side machine, verify the peer/API endpoint:
 
 ```sh
-deploy/public-testnet/check-public.sh YOUR_PUBLIC_HOST
+/opt/nis-public-testnet/check-public.sh YOUR_PUBLIC_HOST
 ```
+
+The public check reads Testnet identity metadata, then performs the NIS authenticated `POST /node/info` exchange with a fresh challenge and verifies the response signature against that identity. A TCP connect or unauthenticated API response alone does not pass this handshake check. Run the checker from the built bundle (or provide its runtime jars with `NIS_TESTNET_CLASSPATH`) on a machine outside the node's network.
 
 Compare local height to at least two peers and sample again after several minutes. The bundle's `monitor-tip.sh [SAMPLES=6] [INTERVAL_SECONDS=300] [LOCAL_URL=http://127.0.0.1:7890]` writes CSV samples for three known Testnet peers. For a persistence check, record height, gracefully stop the service, confirm the H2 file remains, restart the service, and verify the initial height is retained and advances. For reconnect validation, temporarily block this host's outbound TCP `7890` only, observe peer loss while the process stays alive, remove the block, then verify peers return and height progresses. Never disrupt a remote peer.
 
