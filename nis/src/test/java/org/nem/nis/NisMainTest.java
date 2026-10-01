@@ -68,6 +68,8 @@ public class NisMainTest {
 	@Before
 	public void before() {
 		this.session = this.sessionFactory.openSession();
+		DbTestUtils.dbCleanup(this.session);
+		this.mosaicIdCache.clear();
 	}
 
 	@After
@@ -289,7 +291,7 @@ public class NisMainTest {
 	// region delay block loading
 
 	@Test
-	public void initLoadsDbAsynchronouslyIfDelayBlockLoadingIsEnabled() {
+	public void initLoadsDbAsynchronouslyIfDelayBlockLoadingIsEnabled() throws InterruptedException {
 		// Arrange:
 		final TestContext context = this.createTestContext(DELAY_BLOCK_LOADING);
 
@@ -298,6 +300,7 @@ public class NisMainTest {
 
 		// Assert:
 		MatcherAssert.assertThat(context.blockChainLastBlockLayer.isLoading(), IsEqual.equalTo(true));
+		awaitBlockLoading(context);
 		context.assertNoErrors();
 	}
 
@@ -362,6 +365,16 @@ public class NisMainTest {
 
 	private static Amount getBalance(final ReadOnlyNisCache cache, final Address address) {
 		return cache.getAccountStateCache().findStateByAddress(address).getAccountInfo().getBalance();
+	}
+
+	private static void awaitBlockLoading(final TestContext context) throws InterruptedException {
+		final long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+		while (context.blockChainLastBlockLayer.isLoading() && System.nanoTime() < deadline) {
+			Thread.sleep(10);
+		}
+
+		MatcherAssert.assertThat("asynchronous block loading did not complete", context.blockChainLastBlockLayer.isLoading(),
+				IsEqual.equalTo(false));
 	}
 
 	private static NisConfiguration createNisConfiguration(final boolean autoBoot, final boolean supplyBootKey,

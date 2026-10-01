@@ -19,7 +19,7 @@ public class BlockChainLastBlockLayer {
 	private final BlockDao blockDao;
 	private final NisModelToDbModelMapper mapper;
 
-	private boolean isLoading;
+	private volatile boolean isLoading;
 	private DbBlock lastBlock;
 
 	@Autowired(required = true)
