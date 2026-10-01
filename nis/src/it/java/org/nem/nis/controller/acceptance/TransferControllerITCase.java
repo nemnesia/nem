@@ -102,7 +102,7 @@ public class TransferControllerITCase {
 		// Assert:
 		MatcherAssert.assertThat(result.getStatus(), IsEqual.equalTo(400));
 		MatcherAssert.assertThat(result.getError().getMessage(),
-				IsEqual.equalTo("org.apache.commons.codec.DecoderException: Illegal hexadecimal character G at index 11"));
+				IsEqual.equalTo("org.apache.commons.codec.DecoderException: Illegal hexadecimal character 0x47 at index 11."));
 	}
 
 	@Test
@@ -119,7 +119,7 @@ public class TransferControllerITCase {
 		// Assert:
 		MatcherAssert.assertThat(result.getStatus(), IsEqual.equalTo(400));
 		MatcherAssert.assertThat(result.getError().getMessage(),
-				IsEqual.equalTo("org.apache.commons.codec.DecoderException: Illegal hexadecimal character   at index 3"));
+				IsEqual.equalTo("org.apache.commons.codec.DecoderException: Illegal hexadecimal character 0x20 at index 3."));
 	}
 
 	@Test

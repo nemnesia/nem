@@ -6,10 +6,16 @@ cd "$(dirname "$0")/../.."
 mkdir -p target
 STATE_FILE=target/nis-it-state
 
+is_ready() {
+	curl --fail --silent --max-time 2 http://127.0.0.1:7890/heartbeat >/dev/null 2>&1 \
+		&& curl --fail --silent --max-time 2 -H 'Content-Type: application/json' \
+			-d '{"height":1}' http://127.0.0.1:7890/block/at/public >/dev/null 2>&1
+}
+
 if [ -f "$STATE_FILE" ]; then
 	EXISTING_HOME=$(cat "$STATE_FILE")
 	if [ -f "$EXISTING_HOME/nis.pid" ] && kill -0 "$(cat "$EXISTING_HOME/nis.pid")" 2>/dev/null \
-		&& curl --fail --silent --show-error --max-time 2 http://127.0.0.1:7890/heartbeat >/dev/null 2>&1; then
+		&& is_ready; then
 		echo "NIS integration runtime is already ready."
 		exit 0
 	fi
@@ -71,7 +77,7 @@ printf '%s\n' "$IT_HOME" > "$STATE_FILE"
 printf '%s\n' "$NIS_PID" > "$IT_HOME/nis.pid"
 
 for attempt in $(seq 1 90); do
-	if curl --fail --silent --max-time 2 http://127.0.0.1:7890/heartbeat >/dev/null 2>&1; then
+	if is_ready; then
 		echo "Isolated Testnet NIS runtime ready at http://127.0.0.1:7890 (home: $IT_HOME)."
 		trap - EXIT
 		exit 0

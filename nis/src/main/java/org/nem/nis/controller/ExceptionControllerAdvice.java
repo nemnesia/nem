@@ -7,6 +7,7 @@ import org.nem.nis.NisIllegalStateException;
 import org.nem.nis.controller.interceptors.UnauthorizedAccessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
+import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -69,6 +70,17 @@ public class ExceptionControllerAdvice {
 	@ExceptionHandler(NisIllegalStateException.class)
 	public ResponseEntity<ErrorResponse> handleNisIllegalStateException(final NisIllegalStateException e) {
 		return this.createResponse(e, HttpStatus.SERVICE_UNAVAILABLE);
+	}
+
+	/**
+	 * Handler for requests that do not map to an endpoint.
+	 *
+	 * @param e The exception.
+	 * @return A not-found response.
+	 */
+	@ExceptionHandler(NoHandlerFoundException.class)
+	public ResponseEntity<ErrorResponse> handleNoHandlerFoundException(final NoHandlerFoundException e) {
+		return this.createResponse(e.getMessage(), HttpStatus.NOT_FOUND);
 	}
 
 	/**

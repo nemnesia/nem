@@ -9,6 +9,7 @@ import org.nem.core.connect.ErrorResponse;
 import org.nem.core.time.*;
 import org.nem.nis.NisIllegalStateException;
 import org.springframework.http.*;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 public class ExceptionControllerAdviceTest {
 	private static final TimeInstant CURRENT_TIME = new TimeInstant(57);
@@ -53,6 +54,19 @@ public class ExceptionControllerAdviceTest {
 
 		// Assert:
 		assertEntity(entity, HttpStatus.SERVICE_UNAVAILABLE, "NIS_ILLEGAL_STATE_NOT_BOOTED");
+	}
+
+	@Test
+	public void handleNoHandlerFoundExceptionCreatesNotFoundResponse() {
+		// Arrange:
+		final ExceptionControllerAdvice advice = createAdvice();
+		final NoHandlerFoundException exception = new NoHandlerFoundException("POST", "/wrong/at", HttpHeaders.EMPTY);
+
+		// Act:
+		final ResponseEntity<ErrorResponse> entity = advice.handleNoHandlerFoundException(exception);
+
+		// Assert:
+		assertEntity(entity, HttpStatus.NOT_FOUND, "No endpoint POST /wrong/at.");
 	}
 
 	@Test
