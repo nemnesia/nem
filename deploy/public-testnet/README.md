@@ -13,6 +13,7 @@ This bundle runs the repository's NIS 0.6.102 code on Java 25 against the public
 - H2 database: `/var/lib/nis-public-testnet/nis/data/nis5_testnet.mv.db` by default, from `jdbc.url` in `db.properties`. Never copy or point this path at a Mainnet database.
 - NIS generates a random node identity if no boot key is set. `configure.sh` instead creates a persistent Testnet-only key outside the repository so its identity survives restarts. Auto-harvesting is disabled.
 - Peer identity is exchanged in NIS's authenticated peer protocol over HTTP. Public `nem.host` must resolve or route to this machine's TCP `7890` from the Internet.
+- The deployment wrapper accepts a DNS hostname or IPv4 literal. IPv6 advertising and external reachability have not been validated.
 
 ## Build a bundle
 
