@@ -1,0 +1,32 @@
+[Unit]
+Description=NIS Java 25 public NEM Testnet node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nis-testnet
+Group=nis-testnet
+WorkingDirectory=/opt/nis-public-testnet
+Environment=NIS_TESTNET_BUNDLE_DIR=/opt/nis-public-testnet
+Environment=NIS_TESTNET_CONFIG_DIR=/etc/nis-public-testnet
+Environment=NIS_TESTNET_LOG_DIR=/var/lib/nis-public-testnet/nis/logs
+Environment=NIS_JAVA_XMS=2g
+Environment=NIS_JAVA_XMX=6g
+ExecStart=/opt/nis-public-testnet/run.sh
+Restart=on-failure
+RestartSec=15s
+TimeoutStopSec=120s
+KillSignal=SIGTERM
+UMask=0077
+LimitNOFILE=65536
+MemoryMax=8G
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/nis-public-testnet /etc/nis-public-testnet
+ReadWritePaths=/var/lib/nis-public-testnet
+
+[Install]
+WantedBy=multi-user.target

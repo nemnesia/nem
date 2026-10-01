@@ -1,0 +1,55 @@
+# Copy to /etc/nis-public-testnet/config.properties and set nem.host to the
+# stable public DNS name or IPv4 address that accepts inbound TCP/7890.
+nem.shortServerName = NisPublicTestnet
+nem.folder = /var/lib/nis-public-testnet
+nem.maxThreads = 200
+nem.protocol = http
+nem.host = REPLACE_WITH_PUBLIC_HOST
+nem.httpPort = 7890
+nem.httpsPort = 7891
+nem.websocketPort = 7778
+nem.webContext =
+nem.apiContext =
+nem.homePath =
+nem.shutdownPath = /shutdown
+nem.useDosFilter = true
+nem.nonAuditedApiPaths = /heartbeat|/status|/chain/height|/chain/score|/chain/last-block|/chain/hashes-from|/push/transaction|/node/ping|/node/info|/node/extended-info|/node/peer-list/active|/account/get|/account/status|/account/unconfirmedTransactions|/account/transfers/all|/account/get/batch
+nem.network = testnet
+
+# A persistent Testnet-only key is injected into config-user.properties by
+# configure.sh. Auto-harvesting stays disabled on this public test node.
+nis.shouldAutoBoot = true
+nis.shouldAutoHarvestOnBoot = false
+nis.additionalHarvesterPrivateKeys =
+nis.nodeLimit = 5
+nis.timeSyncNodeLimit = 20
+nis.useBinaryTransport = true
+nis.useNetworkTime = true
+nis.ignoreFees = false
+# Use the explicit nem.host endpoint. Auto-detection can advertise a private
+# interface address when this node is behind NAT.
+nis.ipDetectionMode = Disabled
+nis.unlockedLimit = 0
+nis.allowedHarvesterAddresses =
+nis.maxTransactions = 10000
+nis.maxTransactionsPerBlock = 120
+nis.blockGenerationTargetTime = 60
+nis.blockChainRewriteLimit = 360
+nis.additionalLocalIps =
+nis.transactionHashRetentionTime = 36
+nis.optionalFeatures = TRANSACTION_HASH_LOOKUP
+nis.blockChainFeatures = PROOF_OF_IMPORTANCE|WB_TIME_BASED_VESTING
+nis.delayBlockLoading = true
+
+# The public NIS1 Testnet starts these protocol forks at height 1. These
+# overrides are required for the live Testnet chain; the repository's generic
+# Testnet defaults describe the historical test network instead.
+nis.treasuryReissuanceForkHeight = 1
+nis.treasuryReissuanceForkTransactionHashes =
+nis.treasuryReissuanceForkFallbackTransactionHashes =
+nis.multisigMOfNForkHeight = 1
+nis.mosaicsForkHeight = 1
+nis.firstFeeForkHeight = 1
+nis.secondFeeForkHeight = 1
+nis.remoteAccountForkHeight = 1
+nis.mosaicRedefinitionForkHeight = 1
