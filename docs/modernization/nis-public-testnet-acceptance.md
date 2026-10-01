@@ -23,6 +23,7 @@
 - The first runtime used a stale generated config that lacked the live fork overrides and stalled at height `1601` with `FAILURE_INSUFFICIENT_FEE`. Regenerating the config from the updated template, then restarting with the same DB/key, resolved that validation failure and synchronization advanced.
 - A persistent, randomly generated Testnet-only boot key was kept outside the repository in a mode-0600 file. The same config and identity were reused after restart. Auto-harvesting was disabled. No secret material is recorded here.
 - The deployment template keeps `/opt`, `/etc`, `/var/lib` paths separate; supplies a Java 25 startup wrapper; and includes a dedicated unprivileged systemd unit with write access limited to Testnet data. The systemd unit was not installed on this host.
+- Deployment scripts passed `bash -n` and ShellCheck. The unit passed `systemd-analyze verify` with its installed `ExecStart` path mapped to the checked-in executable for validation; it was not installed or started by systemd here.
 
 ## Public Testnet runtime evidence
 
@@ -41,6 +42,9 @@ The public peer endpoints below returned matching Testnet heights and peer metad
 | 2026-10-01 10:28:11 | 47,201 | 813,514 | 813,514 | 813,514 |
 | 2026-10-01 10:29:12 | 53,201 | 813,517 | 813,517 | 813,517 |
 | 2026-10-01 10:30:13 | 59,201 | 813,518 | 813,518 | 813,518 |
+| 2026-10-01 10:33:07 | 73,601 | 813,525 | 813,525 | 813,525 |
+| 2026-10-01 10:34:08 | 79,201 | 813,526 | 813,526 | 813,526 |
+| 2026-10-01 10:36:10 | 90,801 | 813,526 | 813,526 | 813,526 |
 
 - `/node/info` reported network ID `-104`, NIS `0.6.102`, and three active peers.
 - `/status` returned code `5` (`BOOTED`), not code `6` (`SYNCHRONIZED`). Chain tip following and synchronization to the current public tip are therefore incomplete.
@@ -51,7 +55,7 @@ The public peer endpoints below returned matching Testnet heights and peer metad
 ## Restart, persistence, reconnect, and hardening
 
 - Graceful shutdown through the local trusted `/shutdown` endpoint returned HTTP 200 and exited cleanly.
-- The same Testnet H2 DB and key were reused on restart. Before the last restart the node reported height `60,801`; startup logged `block loading completed; height 60801` at 10:30:48 UTC, and the endpoint reported `64,001` by 10:31 UTC while pulling/validating new blocks. The H2 file remained at the same path and was about 33 MB after graceful shutdown. No fresh database was created. This demonstrates DB reuse and resumed synchronization, but not a completed catch-up/restart at the live tip.
+- The same Testnet H2 DB and key were reused on restart. Before the last restart the node reported height `60,801`; startup logged `block loading completed; height 60801` at 10:30:48 UTC, and the endpoint reported `64,001` by 10:31 UTC while pulling/validating new blocks. It continued to height `90,801` with three peers by 10:36 UTC. The H2 file remained at the same path and was about 33 MB after graceful shutdown. No fresh database was created. This demonstrates DB reuse and resumed synchronization, but not a completed catch-up/restart at the live tip.
 - A controlled connectivity interruption and reconnect cycle was not run because changing host routes/firewall requires unavailable privileged access. Scheduler reconnect behavior is present in source but was not accepted as runtime evidence.
 - No system firewall or upstream NAT rule could be inspected or changed; `sudo` requires an unavailable password. The node was not advertised publicly and no public port was opened intentionally.
 - The deployment artifacts restrict identity permissions, disable harvesting, separate Testnet storage, and document exposure only on TCP `7890`. Internet exposure hardening is not accepted until host/edge firewall state and an external probe are verified.
@@ -66,6 +70,4 @@ An infrastructure owner with access to the intended Internet-facing Linux host, 
 4. Keep the Java 25 service online until it reaches the public chain tip; record `/status` code `6` and repeated local/peer tip samples.
 5. With that node online, record graceful restart and DB reuse at its current height, then a controlled local outbound TCP `7890` interruption/recovery and successful peer reconnection/sync.
 6. Run an extended stability interval and resolve/re-run the one full-suite test failure before treating `build-bundle.sh` as green.
-7. Supply an authorized GitHub HTTPS credential or SSH deploy key and publish `agent/nis-public-testnet-node`; the existing environment has neither, so its initial push was rejected by GitHub.
-
 The deployment and validation procedure, including stop/rollback instructions, is in [`deploy/public-testnet/README.md`](../../deploy/public-testnet/README.md). The public Testnet fork-height overrides follow the [NEM Testnet node installation guide](https://docs.nemtest.net/en/userbook/node/install/).
