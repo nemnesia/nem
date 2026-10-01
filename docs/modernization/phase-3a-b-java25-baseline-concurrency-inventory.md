@@ -113,10 +113,10 @@ reporting its Failsafe results. No test was skipped or weakened.
   the existing async-timer failure path. GitHub Actions Java 25 and CodeQL
   workflows remain; the Java 17 compatibility workflow was removed.
 
-## Remaining production acceptance
+## Production acceptance items open when this inventory was recorded
 
-Mainnet/Testnet database replay, NIS boot/restart/shutdown against accepted
-chain data, peer synchronization, API/WebSocket behavior, harvesting, and
-lightweight production CPU/heap comparison remain necessary before calling
-Phase 3 complete. They require provisioned chain databases and permitted
-network access that are not part of this local compile/test run.
+At the time this Phase 3A–3B inventory was recorded, Mainnet/Testnet replay,
+restart, API, WebSocket, harvesting, peer synchronization, and runtime
+observation had not yet been evaluated. The later results and remaining external
+checks are recorded in
+[`phase-3d-l-java25-optimization-acceptance.md`](phase-3d-l-java25-optimization-acceptance.md).
