@@ -549,6 +549,22 @@ done as isolated waves when affected versions and exercised paths are proven.
 Jakarta migration, Spring major modernization beyond the selected compatibility
 line, cache/persistent state, and memory optimization remain later decisions.
 
+### Current modernization status — Phase 2M
+
+Phase 2M H2/Flyway modernization is **COMPLETE / CLOSED** on H2 `2.5.250` and
+Flyway `12.11.0`. Phase 2M-A records clean migration replay, persisted
+Mainnet/Testnet logical equivalence, and chain reconstruction. Phase 2M-B
+records Java 17/25 root regression and the complete relevant
+repository-controlled H2/DAO/controller Failsafe group. The full 79-test NIS
+Failsafe suite was run on both JDKs; its external peer/Mijin prerequisites and
+database-independent random/timing/performance failures are classified in the
+[Phase 2M-B acceptance record](phase-2m-b-h2-flyway-integration-final-acceptance.md),
+and are not represented as passing.
+
+Phase 2L-H remains **BLOCKED — EXTERNAL JENKINS JAVA 25 OWNER ACTION REQUIRED**;
+Phase 2L overall remains **PARTIAL**. Phase 2M does not claim hosted Jenkins
+Java 25 acceptance.
+
 ## Explicitly deferred
 
 - Any production dependency version change in Phase 2A.
